@@ -23,14 +23,89 @@ namespace SchoolProyectBackend.Data
             base.OnModelCreating(modelBuilder);
 
             // 🔹 Definir la clave primaria de Notification
-            modelBuilder.Entity<Notification>()
-                .HasKey(n => n.NotifyID);
+            modelBuilder.Entity<Notification>().HasKey(n => n.NotifyID);
+            modelBuilder.Entity<NotificationRecip>().ToTable("notifyRecip").HasKey(nr => nr.RecipientId);
 
             modelBuilder.Entity<NotificationRecip>()
-        .HasKey(nr => nr.Id);
+                .Property(nr => nr.RecipientId)
+                .HasColumnName("recipientID");
 
+            modelBuilder.Entity<Notification>()
+                .Property(n => n.NotifyID)
+                .HasColumnName("notificationID");
+
+
+            // 🔹 Configurar User y asegurarse de que la tabla es "user"
             modelBuilder.Entity<User>().ToTable("user").HasKey(u => u.UserID);
-            modelBuilder.Entity<Role>().ToTable("role").HasKey(r => r.RoleID);
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Role)
+                .WithMany(r => r.Users)
+                .HasForeignKey(u => u.RoleID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 🔹 Configurar Teacher y su relación con User
+            modelBuilder.Entity<Teacher>().ToTable("teacher").HasKey(t => t.TeacherID);
+            modelBuilder.Entity<Teacher>()
+                .HasOne(t => t.User)
+                .WithMany() 
+                .HasForeignKey(t => t.UserID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 🔹 Configurar Student y su relación con User y Parent
+            modelBuilder.Entity<Student>().ToTable("student").HasKey(s => s.StudentID);
+            modelBuilder.Entity<Student>()
+                .HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserID)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Student>()
+                .HasOne(s => s.Parent)
+                .WithMany(p => p.Students)
+                .HasForeignKey(s => s.ParentID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 🔹 Configurar Parent y su relación con User
+            modelBuilder.Entity<Parent>().ToTable("parent").HasKey(p => p.ParentID);
+            modelBuilder.Entity<Parent>()
+                .HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 🔹 Configurar Course y su relación con Teacher
+            modelBuilder.Entity<Course>().ToTable("courses").HasKey(c => c.CourseID);
+            modelBuilder.Entity<Course>()
+                .HasOne(c => c.Teacher)
+                .WithMany(t => t.Courses)
+                .HasForeignKey(c => c.TeacherID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 🔹 Configurar Enrollment y su relación con Student y Course
+            modelBuilder.Entity<Enrollment>().ToTable("enrollment").HasKey(e => e.EnrollmentID);
+            modelBuilder.Entity<Enrollment>()
+                .HasOne(e => e.Student)
+                .WithMany(s => s.Enrollments)
+                .HasForeignKey(e => e.StudentID)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Enrollment>()
+                .HasOne(e => e.Course)
+                .WithMany(c => c.Enrollments)
+                .HasForeignKey(e => e.CourseID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 🔹 Configurar Grade y su relación con Student y Course
+            modelBuilder.Entity<Grade>().ToTable("grades").HasKey(g => g.GradeID);
+            modelBuilder.Entity<Grade>()
+                .HasOne(g => g.Student)
+                .WithMany(s => s.Grades)
+                .HasForeignKey(g => g.StudentID)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Grade>()
+                .HasOne(g => g.Course)
+                .WithMany(c => c.Grades)
+                .HasForeignKey(g => g.CourseID)
+                .OnDelete(DeleteBehavior.Restrict);
         }
+
     }
 }

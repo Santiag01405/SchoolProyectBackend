@@ -16,7 +16,7 @@
                 _context = context;
             }
 
-            // GET: api/users (Obtener todos los usuarios)
+            // GET: api/users 
             [HttpGet]
             public async Task<ActionResult<IEnumerable<User>>> GetUsers()
             {

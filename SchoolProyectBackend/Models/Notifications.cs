@@ -7,6 +7,8 @@ namespace SchoolProyectBackend.Models
     {
         [Key] // 🔹 Define explícitamente NotifyID como clave primaria
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)] // 🔹 Autogenera el ID en la BD
+
+        [Column("notificationID")]
         public int NotifyID { get; set; }
 
         [Required]

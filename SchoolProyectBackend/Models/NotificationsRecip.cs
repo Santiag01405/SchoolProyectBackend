@@ -1,16 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SchoolProyectBackend.Models
 {
     public class NotificationRecip
     {
-        [Key]  // 🔹 Define la clave primaria
-        public int Id { get; set; }
 
-        public int NotificationId { get; set; }
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+
+        [Column("recipientID")] // 🔹 Clave primaria con el nombre correcto en la BD
         public int RecipientId { get; set; }
 
-        // Relaciones con otras entidades
+        [Column("notificationID")]
+        public int NotificationId { get; set; }
+
         public Notification? Notification { get; set; }
     }
 }

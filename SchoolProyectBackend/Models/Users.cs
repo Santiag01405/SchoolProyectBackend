@@ -13,6 +13,8 @@ namespace SchoolProyectBackend.Models
         public required string PasswordHash { get; set; }
 
         public int RoleID { get; set; }
+
+        public Role? Role { get; set; }
     }
 
 }
