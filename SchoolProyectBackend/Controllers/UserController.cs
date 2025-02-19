@@ -37,18 +37,45 @@
                 return user;
             }
 
-            // POST: api/users (Crear usuario)
-            [HttpPost]
-            public async Task<ActionResult<User>> CreateUser(User user)
+        // ✅ POST: api/users (Crear usuario)
+        [HttpPost]
+        public async Task<ActionResult<User>> CreateUser([FromBody] User user)
+        {
+            if (user == null)
+            {
+                return BadRequest(new { message = "El usuario no puede ser nulo" });
+            }
+
+            try
             {
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
                 return CreatedAtAction(nameof(GetUserById), new { id = user.UserID }, user);
             }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, new { message = "Error en la base de datos", error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error inesperado", error = ex.Message });
+            }
+        }
 
-            // PUT: api/users/{id} (Actualizar usuario)
-            [HttpPut("{id}")]
+        // POST: api/users (Crear usuario)
+        /*[HttpPost]
+        public async Task<ActionResult<User>> CreateUser(User user)
+        {
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetUserById), new { id = user.UserID }, user);
+        }
+        */
+
+        // PUT: api/users/{id} (Actualizar usuario)
+        [HttpPut("{id}")]
             public async Task<IActionResult> UpdateUser(int id, User userUpdate)
             {
                 if (id != userUpdate.UserID)
