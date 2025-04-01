@@ -5,8 +5,8 @@ namespace SchoolProyectBackend.Models
 {
     public class Notification
     {
-        [Key] // 🔹 Define explícitamente NotifyID como clave primaria
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)] // 🔹 Autogenera el ID en la BD
+        [Key] 
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)] 
 
         [Column("notificationID")]
         public int NotifyID { get; set; }
@@ -20,12 +20,8 @@ namespace SchoolProyectBackend.Models
         [Required]
         public DateTime Date { get; set; }
 
-        public int? StudentID { get; set; }
-        public int? TeacherID { get; set; }
-        public int? ParentID { get; set; }
-
-        public Student? Student { get; set; }
-        public Teacher? Teacher { get; set; }
-        public Parent? Parent { get; set; }
+        [ForeignKey("User")]
+        public int UserID { get; set; }
+        public User? User { get; set; }
     }
 }

@@ -41,8 +41,29 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .EnableSensitiveDataLogging() // 🔹 Registra consultas SQL completas
+           .LogTo(Console.WriteLine, LogLevel.Information) // 🔹 Muestra logs en consola
+);
+
+
 var app = builder.Build();
 app.UseCors("AllowAll");
+
+/*app.UseEndpoints(endpoints =>
+{
+    endpoints.MapGet("/", async context =>
+    {
+        var routeData = endpoints.DataSources
+            .SelectMany(ds => ds.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Select(e => e.RoutePattern.RawText)
+            .ToList();
+
+        await context.Response.WriteAsJsonAsync(routeData);
+    });
+});*/
 
 // 🔹 Habilitar autenticación y autorización
 app.UseAuthentication();

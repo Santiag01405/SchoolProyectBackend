@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿/*using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchoolProyectBackend.Data;
 using SchoolProyectBackend.Models;
@@ -95,4 +95,4 @@ namespace SchoolProyectBackend.Controllers
             return NoContent();
         }
     }
-}
+}*/

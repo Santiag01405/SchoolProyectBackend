@@ -125,5 +125,27 @@
         {
             return _context.Users.Any(e => e.UserID == id);
         }
+
+        //Busqueda de usuario segun su UserName
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<User>>> SearchUsers([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return BadRequest("Debe proporcionar un término de búsqueda.");
+            }
+
+            var users = await _context.Users
+                .Where(u => (u.RoleID == 1 || u.RoleID == 3) && u.UserName.Contains(query))
+                .ToListAsync();
+
+            if (!users.Any())
+            {
+                return NotFound("No se encontraron usuarios con ese nombre.");
+            }
+
+            return Ok(users);
+        }
+
     }
 }
