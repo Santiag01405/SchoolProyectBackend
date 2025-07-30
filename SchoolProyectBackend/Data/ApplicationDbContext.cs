@@ -21,6 +21,8 @@ namespace SchoolProyectBackend.Data
         public DbSet<Evaluation> Evaluations { get; set; }
         public DbSet<UserRelationship> UserRelationships { get; set; }
         public DbSet<Attendance> Attendance { get; set; }
+        public DbSet<School> Schools { get; set; }
+        public DbSet<Classroom> Classrooms { get; set; }
 
 
 
@@ -139,6 +141,77 @@ namespace SchoolProyectBackend.Data
             modelBuilder.Entity<UserRelationship>()
                 .HasIndex(ur => new { ur.User1ID, ur.User2ID, ur.RelationshipType })
                 .IsUnique();
+
+            // Tabla y clave primaria
+            modelBuilder.Entity<School>().ToTable("schools").HasKey(s => s.SchoolID);
+
+            // Relación User -> School
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.School)
+                .WithMany(s => s.Users)
+                .HasForeignKey(u => u.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación Course -> School
+            modelBuilder.Entity<Course>()
+                .HasOne(c => c.School)
+                .WithMany(s => s.Courses)
+                .HasForeignKey(c => c.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Tabla schools
+            modelBuilder.Entity<School>().ToTable("schools").HasKey(s => s.SchoolID);
+
+            // Relación User → School
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.School)
+                .WithMany(s => s.Users)
+                .HasForeignKey(u => u.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación Course → School
+            modelBuilder.Entity<Course>()
+                .HasOne(c => c.School)
+                .WithMany(s => s.Courses)
+                .HasForeignKey(c => c.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación Enrollment → School
+            modelBuilder.Entity<Enrollment>()
+                .HasOne(e => e.School)
+                .WithMany(s => s.Enrollments)
+                .HasForeignKey(e => e.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación Attendance → School
+            modelBuilder.Entity<Attendance>()
+                .HasOne(a => a.School)
+                .WithMany(s => s.Attendance)
+                .HasForeignKey(a => a.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación Evaluation → School
+            modelBuilder.Entity<Evaluation>()
+                .HasOne(e => e.School)
+                .WithMany(s => s.Evaluations)
+                .HasForeignKey(e => e.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación Notification → School
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.School)
+                .WithMany(s => s.Notifications)
+                .HasForeignKey(n => n.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación UserRelationship → School
+            modelBuilder.Entity<UserRelationship>()
+                .HasOne(ur => ur.School)
+                .WithMany(s => s.UserRelationships)
+                .HasForeignKey(ur => ur.SchoolID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
         }
     }
 }

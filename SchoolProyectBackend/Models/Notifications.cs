@@ -20,8 +20,14 @@ namespace SchoolProyectBackend.Models
         [Required]
         public DateTime Date { get; set; }
 
+        [Column("isRead")]
+        public bool IsRead { get; set; } = false;
+
         [ForeignKey("User")]
         public int UserID { get; set; }
         public User? User { get; set; }
+
+        public int SchoolID { get; set; }
+        public School? School { get; set; }
     }
 }

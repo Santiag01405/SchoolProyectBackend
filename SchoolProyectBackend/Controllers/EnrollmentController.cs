@@ -18,12 +18,34 @@ namespace SchoolProyectBackend.Controllers
             _context = context;
         }
 
-        // ✅ 1. Obtener todas las inscripciones
+        //Obtener todas las inscripciones
 
+        /* [HttpGet]
+         public async Task<ActionResult<IEnumerable<object>>> GetAllEnrollments()
+         {
+             var enrollments = await _context.Enrollments
+                 .Select(e => new
+                 {
+                     e.EnrollmentID,
+                     e.UserID,
+                     UserName = e.User != null ? e.User.UserName : "Usuario no encontrado",
+                     e.CourseID,
+                     CourseName = e.Course != null ? e.Course.Name : "Curso no encontrado",
+                     StudentID = e.GetType().GetProperty("studentID") != null ? e.GetType().GetProperty("studentID")!.GetValue(e, null) : "Sin información"
+                 })
+                 .ToListAsync();
+
+             return Ok(enrollments);
+         }*/
+
+        //Con schoolid
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetAllEnrollments()
+        public async Task<ActionResult<IEnumerable<object>>> GetAllEnrollments([FromQuery] int schoolId)
         {
             var enrollments = await _context.Enrollments
+                .Where(e => e.SchoolID == schoolId)
+                .Include(e => e.User)
+                .Include(e => e.Course)
                 .Select(e => new
                 {
                     e.EnrollmentID,
@@ -37,6 +59,7 @@ namespace SchoolProyectBackend.Controllers
 
             return Ok(enrollments);
         }
+
 
         [HttpGet("course/{courseID}/students")]
         public async Task<IActionResult> GetStudentsByCourse(int courseID)
@@ -62,59 +85,113 @@ namespace SchoolProyectBackend.Controllers
             return Ok(students);
         }
 
-        // ✅ 2. Obtener todas las inscripciones de un usuario específico
+        // 2. Obtener todas las inscripciones de un usuario específico
 
+        /* [HttpGet("user/{userId}")]
+         public async Task<ActionResult<IEnumerable<object>>> GetUserEnrollments(int userId)
+         {
+             var enrollments = await _context.Enrollments
+                 .Where(e => e.UserID == userId)
+                 .Select(e => new
+                 {
+                     e.EnrollmentID,
+                     e.UserID,
+                     UserName = e.User != null ? e.User.UserName : "Usuario no encontrado",
+                     e.CourseID,
+                     CourseName = e.Course != null ? e.Course.Name : "Curso no encontrado",
+                     StudentID = e.GetType().GetProperty("StudentID") != null
+                         ? (e.GetType().GetProperty("StudentID")!.GetValue(e, null) ?? "Sin información")
+                         : "No aplica"
+                 })
+                 .ToListAsync();
+
+             if (enrollments == null || enrollments.Count == 0)
+                 return NotFound("El usuario no tiene inscripciones.");
+
+             return Ok(enrollments);
+         }*/
+
+        //Con schoolid
         [HttpGet("user/{userId}")]
-        public async Task<ActionResult<IEnumerable<object>>> GetUserEnrollments(int userId)
+        public async Task<ActionResult<IEnumerable<object>>> GetUserEnrollments(int userId, [FromQuery] int schoolId)
         {
             var enrollments = await _context.Enrollments
-                .Where(e => e.UserID == userId)
-                .Select(e => new
-                {
-                    e.EnrollmentID,
-                    e.UserID,
-                    UserName = e.User != null ? e.User.UserName : "Usuario no encontrado",
-                    e.CourseID,
-                    CourseName = e.Course != null ? e.Course.Name : "Curso no encontrado",
-                    StudentID = e.GetType().GetProperty("StudentID") != null
-                        ? (e.GetType().GetProperty("StudentID")!.GetValue(e, null) ?? "Sin información")
-                        : "No aplica"
-                })
-                .ToListAsync();
+                .Where(e => e.UserID == userId && e.SchoolID == schoolId)
+                .Include(e => e.User)
+                .Include(e => e.Course)
+                .ToListAsync(); // ✅ Ejecutar primero la consulta
 
-            if (enrollments == null || enrollments.Count == 0)
-                return NotFound("El usuario no tiene inscripciones.");
+            var result = enrollments.Select(e => new
+            {
+                e.EnrollmentID,
+                e.UserID,
+                UserName = e.User != null ? e.User.UserName : "Usuario no encontrado",
+                e.CourseID,
+                CourseName = e.Course != null ? e.Course.Name : "Curso no encontrado"
+            }).ToList();
 
-            return Ok(enrollments);
+            if (!result.Any())
+                return NotFound("No hay inscripciones para este usuario en este colegio.");
+
+            return Ok(result);
         }
+
+
 
         //Obtener todos los dias de la semana
+        /* [HttpGet("user/{userId}/schedule")]
+         public async Task<ActionResult<IEnumerable<object>>> GetUserWeeklySchedule(int userId) 
+         {
+             var enrollments = await _context.Enrollments
+                 .Where(e => e.UserID == userId) // ✅ Asegurar que UserID es una propiedad
+                 .Select(e => new
+                 {
+                     e.EnrollmentID,
+                     e.UserID,
+                     UserName = e.User != null ? e.User.UserName : "Usuario no encontrado",
+                     e.CourseID,
+                     CourseName = e.Course != null ? e.Course.Name : "Curso no encontrado",
+                     DayOfWeek = e.Course != null ? (DayOfWeek?)e.Course.DayOfWeek : null,
+                     StudentID = e.GetType().GetProperty("StudentID") != null
+                         ? (e.GetType().GetProperty("StudentID")!.GetValue(e, null) ?? "Sin información")
+                         : "No aplica"
+                 })
+                 .ToListAsync();
+
+             if (enrollments == null || enrollments.Count == 0)
+                 return NotFound("El usuario no tiene inscripciones.");
+
+             return Ok(enrollments);
+         }*/
+
+        //Con schoolid
         [HttpGet("user/{userId}/schedule")]
-        public async Task<ActionResult<IEnumerable<object>>> GetUserWeeklySchedule(int userId) // ✅ Usar ActionResult en lugar de IActionResult<>
+        public async Task<ActionResult<IEnumerable<object>>> GetUserWeeklySchedule(int userId, [FromQuery] int schoolId)
         {
             var enrollments = await _context.Enrollments
-                .Where(e => e.UserID == userId) // ✅ Asegurar que UserID es una propiedad
-                .Select(e => new
-                {
-                    e.EnrollmentID,
-                    e.UserID,
-                    UserName = e.User != null ? e.User.UserName : "Usuario no encontrado",
-                    e.CourseID,
-                    CourseName = e.Course != null ? e.Course.Name : "Curso no encontrado",
-                    DayOfWeek = e.Course != null ? (DayOfWeek?)e.Course.DayOfWeek : null, // ✅ Convertir a DayOfWeek? para permitir null
-                    StudentID = e.GetType().GetProperty("StudentID") != null
-                        ? (e.GetType().GetProperty("StudentID")!.GetValue(e, null) ?? "Sin información")
-                        : "No aplica"
-                })
+                .Where(e => e.UserID == userId && e.SchoolID == schoolId)
+                .Include(e => e.Course)
+                .Include(e => e.User)
                 .ToListAsync();
 
-            if (enrollments == null || enrollments.Count == 0)
-                return NotFound("El usuario no tiene inscripciones.");
+            var result = enrollments.Select(e => new
+            {
+                e.EnrollmentID,
+                e.UserID,
+                UserName = e.User?.UserName ?? "Usuario no encontrado",
+                e.CourseID,
+                CourseName = e.Course?.Name ?? "Curso no encontrado",
+                DayOfWeek = e.Course?.DayOfWeek ?? 0
+            }).ToList();
 
-            return Ok(enrollments);
+            if (!result.Any())
+                return NotFound("El usuario no tiene inscripciones en este colegio.");
+
+            return Ok(result);
         }
 
-        // ✅ Obtener los estudiantes inscritos en los cursos de un profesor
+
+        // Obtener los estudiantes inscritos en los cursos de un profesor
         [HttpGet("user/{userId}/students")]
         public async Task<IActionResult> GetStudentsByTeacher(int userId)
         {
@@ -146,70 +223,64 @@ namespace SchoolProyectBackend.Controllers
             return Ok(students);
         }
 
-        // ✅ Obtener estudiantes inscritos en un curso específico
-
-       /* [HttpGet("course/{courseId}/students")]
-        public async Task<IActionResult> GetStudentsByCourse(int courseId)
-        {
-            var enrollments = await _context.Enrollments
-                .Where(e => e.CourseID == courseId)
-                .Include(e => e.User) // Asegurar que carga el usuario
-                .ToListAsync();
-
-            Console.WriteLine($"🔍 Inscripciones encontradas: {enrollments.Count}");
-
-            return Ok(enrollments);
-        }*/
-
-        /*[HttpGet("course/{courseId}/students")]
-        public async Task<IActionResult> GetStudentsByCourse(int courseId)
-        {
-            var enrollments = await _context.Enrollments
-                .Where(e => e.CourseID == courseId)
-                .Include(e => e.User) // Asegurar que se incluye el usuario relacionado
-                .ToListAsync();
-
-            Console.WriteLine($"🔍 Inscripciones encontradas para el curso {courseId}: {enrollments.Count}");
-
-            if (enrollments.Count == 0)
-            {
-                return NotFound($"⚠️ No hay estudiantes inscritos en el curso con ID {courseId}");
-            }
-
-            var students = enrollments.Select(e => new
-            {
-                e.UserID,
-                StudentName = e.User != null ? e.User.UserName : "Usuario no encontrado"
-            }).ToList();
-
-            return Ok(students);
-        }*/
 
 
 
+        // 3. Asignar un usuario a un curso (crear inscripción)
+        /* [HttpPost]
+         public async Task<IActionResult> AssignUserToCourse([FromBody] Enrollment enrollment)
+         {
+             if (enrollment == null || enrollment.UserID == 0 || enrollment.CourseID == 0)
+                 return BadRequest("UserID y CourseID son obligatorios.");
 
-        // ✅ 3. Asignar un usuario a un curso (crear inscripción)
+             // 🔹 Verificar si el usuario existe
+             var userExists = await _context.Users.AnyAsync(u => u.UserID == enrollment.UserID);
+             if (!userExists)
+                 return NotFound("El usuario no existe.");
+
+             // 🔹 Verificar si el curso existe
+             var courseExists = await _context.Courses.AnyAsync(c => c.CourseID == enrollment.CourseID);
+             if (!courseExists)
+                 return NotFound("El curso no existe.");
+
+             // 🔹 Verificar si ya está inscrito
+             var existingEnrollment = await _context.Enrollments
+                 .FirstOrDefaultAsync(e => e.UserID == enrollment.UserID && e.CourseID == enrollment.CourseID);
+
+             if (existingEnrollment != null)
+                 return BadRequest("El usuario ya está inscrito en este curso.");
+
+             _context.Enrollments.Add(enrollment);
+
+             try
+             {
+                 await _context.SaveChangesAsync();
+                 return Ok(new { message = "Usuario inscrito en el curso correctamente." });
+             }
+             catch (Exception ex)
+             {
+                 return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+             }
+         }*/
+
+        //Con schoolid
         [HttpPost]
         public async Task<IActionResult> AssignUserToCourse([FromBody] Enrollment enrollment)
         {
-            if (enrollment == null || enrollment.UserID == 0 || enrollment.CourseID == 0)
-                return BadRequest("UserID y CourseID son obligatorios.");
+            if (enrollment == null || enrollment.UserID == 0 || enrollment.CourseID == 0 || enrollment.SchoolID == 0)
+                return BadRequest("UserID, CourseID y SchoolID son obligatorios.");
 
-            // 🔹 Verificar si el usuario existe
-            var userExists = await _context.Users.AnyAsync(u => u.UserID == enrollment.UserID);
-            if (!userExists)
-                return NotFound("El usuario no existe.");
+            var user = await _context.Users.FindAsync(enrollment.UserID);
+            if (user == null || user.SchoolID != enrollment.SchoolID)
+                return BadRequest("El usuario no pertenece a esta escuela.");
 
-            // 🔹 Verificar si el curso existe
-            var courseExists = await _context.Courses.AnyAsync(c => c.CourseID == enrollment.CourseID);
-            if (!courseExists)
-                return NotFound("El curso no existe.");
+            var course = await _context.Courses.FindAsync(enrollment.CourseID);
+            if (course == null || course.SchoolID != enrollment.SchoolID)
+                return BadRequest("El curso no pertenece a esta escuela.");
 
-            // 🔹 Verificar si ya está inscrito
-            var existingEnrollment = await _context.Enrollments
-                .FirstOrDefaultAsync(e => e.UserID == enrollment.UserID && e.CourseID == enrollment.CourseID);
-
-            if (existingEnrollment != null)
+            var exists = await _context.Enrollments
+                .AnyAsync(e => e.UserID == enrollment.UserID && e.CourseID == enrollment.CourseID);
+            if (exists)
                 return BadRequest("El usuario ya está inscrito en este curso.");
 
             _context.Enrollments.Add(enrollment);
@@ -217,17 +288,18 @@ namespace SchoolProyectBackend.Controllers
             try
             {
                 await _context.SaveChangesAsync();
-                return Ok(new { message = "Usuario inscrito en el curso correctamente." });
+                return Ok(new { message = "Usuario inscrito correctamente." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+                return StatusCode(500, $"Error interno: {ex.Message}");
             }
         }
 
 
-        // ✅ 4. Modificar una inscripción existente (cambiar el curso de un usuario)
-        [HttpPut("{id}")]
+
+        // 4. Modificar una inscripción existente (cambiar el curso de un usuario)
+        /*[HttpPut("{id}")]
         public async Task<IActionResult> UpdateEnrollment(int id, [FromBody] Enrollment updatedEnrollment)
         {
             if (id != updatedEnrollment.EnrollmentID)
@@ -241,9 +313,36 @@ namespace SchoolProyectBackend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Inscripción actualizada correctamente." });
+        }*/
+
+        //Con schoolid
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateEnrollment(int id, [FromBody] Enrollment updatedEnrollment)
+        {
+            if (id != updatedEnrollment.EnrollmentID)
+                return BadRequest("El ID no coincide.");
+
+            var enrollment = await _context.Enrollments.FindAsync(id);
+            if (enrollment == null)
+                return NotFound("Inscripción no encontrada.");
+
+            var user = await _context.Users.FindAsync(updatedEnrollment.UserID);
+            var course = await _context.Courses.FindAsync(updatedEnrollment.CourseID);
+
+            if (user?.SchoolID != updatedEnrollment.SchoolID || course?.SchoolID != updatedEnrollment.SchoolID)
+                return BadRequest("Usuario o curso no pertenecen al mismo colegio.");
+
+            enrollment.UserID = updatedEnrollment.UserID;
+            enrollment.CourseID = updatedEnrollment.CourseID;
+            enrollment.SchoolID = updatedEnrollment.SchoolID;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Inscripción actualizada correctamente." });
         }
 
-        // ✅ 5. Eliminar una inscripción
+
+        // 5. Eliminar una inscripción
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEnrollment(int id)
         {

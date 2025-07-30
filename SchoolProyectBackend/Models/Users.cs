@@ -11,7 +11,14 @@ namespace SchoolProyectBackend.Models
         public required string UserName { get; set; }
         public required string Email { get; set; }
         public required string PasswordHash { get; set; }
+
+        public int SchoolID { get; set; }
+        public School? School { get; set; }
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+        public int? ClassroomID { get; set; }
+
+        [ForeignKey("ClassroomID")]
+        public Classroom Classroom { get; set; }
 
         public int RoleID { get; set; }
 

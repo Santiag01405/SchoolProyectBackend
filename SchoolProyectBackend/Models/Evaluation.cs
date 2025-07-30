@@ -1,7 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using SchoolProyectBackend.Models;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using SchoolProyectBackend.Models;
 
 public class Evaluation
 {
@@ -18,16 +17,21 @@ public class Evaluation
     public DateTime Date { get; set; }
 
     [Required]
-    public int CourseID { get; set; }  
+    public int CourseID { get; set; }
 
     [Required]
-    public int UserID { get; set; }    
+    public int UserID { get; set; }
 
-    
+    public int SchoolID { get; set; }
+    public School? School { get; set; }
+
+    // 🔹 Nuevo campo para asignar el salón automáticamente
+    public int? ClassroomID { get; set; }
+    public Classroom? Classroom { get; set; }
+
     [JsonIgnore]
     public Course? Course { get; set; }
 
     [JsonIgnore]
     public User? User { get; set; }
 }
-

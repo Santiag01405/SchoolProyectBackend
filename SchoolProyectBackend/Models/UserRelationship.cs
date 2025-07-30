@@ -18,5 +18,8 @@ namespace SchoolProyectBackend.Models
         [Required]
         [StringLength(20)]
         public string RelationshipType { get; set; } // Tipo de relación ('Padre-Hijo', 'Profesor-Estudiante', etc.)
+
+        public int SchoolID { get; set; }
+        public School? School { get; set; }
     }
 }

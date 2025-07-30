@@ -13,8 +13,9 @@ namespace SchoolProyectBackend.Models
             public User? User { get; set; } 
 
             public int CourseID { get; set; } 
-            public Course? Course { get; set; }  
-        
+            public Course? Course { get; set; }
+            public int SchoolID { get; set; }
+            public School? School { get; set; }
 
     }
 
