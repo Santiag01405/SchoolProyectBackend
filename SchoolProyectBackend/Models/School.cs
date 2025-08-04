@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SchoolProyectBackend.Models
 {
@@ -19,6 +20,7 @@ namespace SchoolProyectBackend.Models
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         // Relaciones
+        [JsonIgnore]
         public ICollection<User> Users { get; set; }
         public ICollection<Course> Courses { get; set; }
         public ICollection<Evaluation> Evaluations { get; set; }

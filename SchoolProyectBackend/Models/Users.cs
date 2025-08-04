@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace SchoolProyectBackend.Models
 {
@@ -13,6 +14,7 @@ namespace SchoolProyectBackend.Models
         public required string PasswordHash { get; set; }
 
         public int SchoolID { get; set; }
+
         public School? School { get; set; }
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
         public int? ClassroomID { get; set; }

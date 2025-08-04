@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace SchoolProyectBackend.Models
 {
@@ -16,9 +17,11 @@ namespace SchoolProyectBackend.Models
         [Required]
         public int SchoolID { get; set; }
 
-   
+        [JsonIgnore]
         public School? School { get; set; }
+        [JsonIgnore]
         public ICollection<User>? Users { get; set; }
+
     }
 
 }

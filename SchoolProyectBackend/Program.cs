@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+
 using SchoolProyectBackend.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,7 +29,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // 🔹 Agregar controladores
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(x =>
+        x.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+    );
+
+//builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddCors(options =>
 {
@@ -49,6 +55,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 
 var app = builder.Build();
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
 app.UseCors("AllowAll");
 
 /*app.UseEndpoints(endpoints =>

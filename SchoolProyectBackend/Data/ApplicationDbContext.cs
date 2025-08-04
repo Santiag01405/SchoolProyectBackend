@@ -211,6 +211,17 @@ namespace SchoolProyectBackend.Data
                 .HasForeignKey(ur => ur.SchoolID)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<User>()
+    .HasOne(u => u.School)
+    .WithMany(s => s.Users)
+    .HasForeignKey(u => u.SchoolID);
+
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Classroom)
+                .WithMany(c => c.Users)
+                .HasForeignKey(u => u.ClassroomID)
+                .OnDelete(DeleteBehavior.SetNull);
+
 
         }
     }

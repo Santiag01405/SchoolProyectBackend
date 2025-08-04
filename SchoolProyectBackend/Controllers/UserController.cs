@@ -48,18 +48,75 @@
 
 
         // GET: api/users/{id} (Obtener un usuario por ID)
+        /* [HttpGet("{id}")]
+             public async Task<ActionResult<User>> GetUserById(int id)
+             {
+                 var user = await _context.Users.FindAsync(id);
+
+                 if (user == null)
+                 {
+                     return NotFound();
+                 }
+
+                 return user;
+             }*/
         [HttpGet("{id}")]
-            public async Task<ActionResult<User>> GetUserById(int id)
+        public async Task<IActionResult> GetUserById(int id)
+        {
+            try
             {
-                var user = await _context.Users.FindAsync(id);
+                Console.WriteLine($"📌 [DEBUG] Buscando usuario con ID: {id}");
+
+                var user = await _context.Users
+                    .Include(u => u.School)
+                    .FirstOrDefaultAsync(u => u.UserID == id);
 
                 if (user == null)
                 {
-                    return NotFound();
+                    Console.WriteLine("⚠ Usuario no encontrado.");
+                    return NotFound(new { message = "Usuario no encontrado." });
                 }
 
-                return user;
+                Console.WriteLine($"✅ Usuario encontrado: {user.UserName}, RoleID: {user.RoleID}");
+
+                // ✅ Solo cargar Classroom si es estudiante y tiene ClassroomID asignado
+                if (user.RoleID == 1 && user.ClassroomID.HasValue)
+                {
+                    Console.WriteLine($"📌 [DEBUG] Cargando Classroom con ID: {user.ClassroomID}");
+
+                    var classroom = await _context.Classrooms
+                        .FirstOrDefaultAsync(c => c.ClassroomID == user.ClassroomID);
+
+                    if (classroom != null)
+                    {
+                        Console.WriteLine($"✅ Classroom encontrado: {classroom.Name}");
+                        user.Classroom = classroom;
+                    }
+                    else
+                    {
+                        Console.WriteLine("⚠ No se encontró el Classroom asignado al estudiante.");
+                    }
+                }
+
+                return Ok(user);
             }
+            catch (Exception ex)
+            {
+                string errorDetails = ex.Message;
+                if (ex.InnerException != null)
+                    errorDetails += " | Inner Exception: " + ex.InnerException.Message;
+
+                Console.WriteLine($"❌ Error interno en GetUserById: {errorDetails}");
+
+                return StatusCode(500, new
+                {
+                    message = "Error interno en el servidor al obtener usuario.",
+                    error = errorDetails,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
 
         // ✅ POST: api/users (Crear usuario)
         /* [HttpPost]
