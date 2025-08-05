@@ -300,7 +300,7 @@ namespace SchoolProyectBackend.Controllers
         {
             var course = await _context.Courses
                 .Include(c => c.Enrollments)
-                .Include(c => c.Grades)
+                //.Include(c => c.Grades)
                 .FirstOrDefaultAsync(c => c.CourseID == id);
 
             if (course == null)
@@ -310,8 +310,8 @@ namespace SchoolProyectBackend.Controllers
             _context.Enrollments.RemoveRange(course.Enrollments);
 
             // 2. Eliminar notas asociadas
-            if (course.Grades != null)
-                _context.Grades.RemoveRange(course.Grades);
+          //  if (course.Grades != null)
+            //    _context.Grades.RemoveRange(course.Grades);
 
             // 3. Eliminar el curso
             _context.Courses.Remove(course);

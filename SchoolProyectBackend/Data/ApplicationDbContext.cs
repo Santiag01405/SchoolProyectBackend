@@ -116,20 +116,53 @@ namespace SchoolProyectBackend.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
 
+            modelBuilder.Entity<Grade>(entity =>
+            {
+                entity.ToTable("grades");
+                entity.HasKey(g => g.GradeID);
+
+                entity.Property(g => g.GradeID).HasColumnName("gradeID");
+                entity.Property(g => g.UserID).HasColumnName("userID");
+                entity.Property(g => g.CourseID).HasColumnName("courseID");
+                entity.Property(g => g.EvaluationID).HasColumnName("EvaluationID");
+                entity.Property(g => g.SchoolID).HasColumnName("SchoolID");
+                entity.Property(g => g.GradeValue).HasColumnName("gradeValue");
+                entity.Property(g => g.Comments).HasColumnName("comments");
+
+                entity.HasOne(g => g.User)
+                    .WithMany()
+                    .HasForeignKey(g => g.UserID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(g => g.Course)
+                    .WithMany()
+                    .HasForeignKey(g => g.CourseID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(g => g.Evaluation)
+                    .WithMany()
+                    .HasForeignKey(g => g.EvaluationID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(g => g.School)
+                    .WithMany()
+                    .HasForeignKey(g => g.SchoolID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
 
-            // 🔹 Configurar Grade y su relación con Student y Course
-            modelBuilder.Entity<Grade>().ToTable("grades").HasKey(g => g.GradeID);
-            modelBuilder.Entity<Grade>()
-                .HasOne(g => g.Student)
-                .WithMany(s => s.Grades)
-                .HasForeignKey(g => g.StudentID)
-                .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<Grade>()
-                .HasOne(g => g.Course)
-                .WithMany(c => c.Grades)
-                .HasForeignKey(g => g.CourseID)
-                .OnDelete(DeleteBehavior.Restrict);
+            /*  // 🔹 Configurar Grade y su relación con Student y Course
+              modelBuilder.Entity<Grade>().ToTable("grades").HasKey(g => g.GradeID);
+              modelBuilder.Entity<Grade>()
+                  .HasOne(g => g.Student)
+                  .WithMany(s => s.Grades)
+                  .HasForeignKey(g => g.StudentID)
+                  .OnDelete(DeleteBehavior.Restrict);
+              modelBuilder.Entity<Grade>()
+                  .HasOne(g => g.Course)
+                  .WithMany(c => c.Grades)
+                  .HasForeignKey(g => g.CourseID)
+                  .OnDelete(DeleteBehavior.Restrict);*/
 
             //Evaluaciones
             modelBuilder.Entity<Evaluation>()

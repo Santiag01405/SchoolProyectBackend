@@ -28,9 +28,9 @@ namespace SchoolProyectBackend.Models
         public User? User { get; set; }
 
 
-        public ICollection<Enrollment>? Enrollments { get; set; }
+        /*public ICollection<Enrollment>? Enrollments { get; set; }
         public ICollection<Notification>? Notifications { get; set; }
 
-        public ICollection<Grade>? Grades { get; set; }
+        public ICollection<Grade>? Grades { get; set; }*/
     }
 }

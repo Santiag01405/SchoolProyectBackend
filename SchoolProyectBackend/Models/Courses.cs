@@ -26,5 +26,5 @@ public class Course
     public Classroom? Classroom { get; set; }
 
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
-    public ICollection<Grade>? Grades { get; set; }
+   // public ICollection<Grade>? Grades { get; set; }
 }

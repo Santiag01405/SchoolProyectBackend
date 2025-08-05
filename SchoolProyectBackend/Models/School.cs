@@ -28,5 +28,6 @@ namespace SchoolProyectBackend.Models
         public ICollection<Notification> Notifications { get; set; }
         public ICollection<UserRelationship> UserRelationships { get; set; }
         public ICollection<Attendance> Attendance { get; set; }
+       // public ICollection<Grade> Grades { get; set; }
     }
 }

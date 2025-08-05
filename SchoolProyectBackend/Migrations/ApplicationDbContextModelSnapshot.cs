@@ -22,70 +22,6 @@ namespace SchoolProyectBackend.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Evaluation", b =>
-                {
-                    b.Property<int>("EvaluationID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EvaluationID"));
-
-                    b.Property<int>("CourseID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<int>("UserID")
-                        .HasColumnType("int");
-
-                    b.HasKey("EvaluationID");
-
-                    b.HasIndex("CourseID");
-
-                    b.HasIndex("UserID");
-
-                    b.ToTable("Evaluations", (string)null);
-                });
-
-            modelBuilder.Entity("SchoolProyectBackend.Models.Attendance", b =>
-                {
-                    b.Property<int>("AttendanceID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AttendanceID"));
-
-                    b.Property<int>("CourseID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RelatedUserID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<int>("UserID")
-                        .HasColumnType("int");
-
-                    b.HasKey("AttendanceID");
-
-                    b.ToTable("Attendance");
-                });
-
             modelBuilder.Entity("SchoolProyectBackend.Models.Course", b =>
                 {
                     b.Property<int>("CourseID")
@@ -104,17 +40,12 @@ namespace SchoolProyectBackend.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("TeacherID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserID")
+                    b.Property<int>("TeacherID")
                         .HasColumnType("int");
 
                     b.HasKey("CourseID");
 
                     b.HasIndex("TeacherID");
-
-                    b.HasIndex("UserID");
 
                     b.ToTable("courses", (string)null);
                 });
@@ -192,23 +123,28 @@ namespace SchoolProyectBackend.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("ParentID")
+                        .HasColumnType("int");
+
                     b.Property<int?>("StudentID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TeacherID")
                         .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("UserID")
-                        .HasColumnType("int");
-
                     b.HasKey("NotifyID");
+
+                    b.HasIndex("ParentID");
 
                     b.HasIndex("StudentID");
 
-                    b.HasIndex("UserID");
+                    b.HasIndex("TeacherID");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("SchoolProyectBackend.Models.NotificationRecip", b =>
@@ -275,7 +211,7 @@ namespace SchoolProyectBackend.Migrations
 
                     b.HasKey("RoleID");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("SchoolProyectBackend.Models.Student", b =>
@@ -338,7 +274,7 @@ namespace SchoolProyectBackend.Migrations
 
                     b.HasIndex("UserID");
 
-                    b.ToTable("Teachers");
+                    b.ToTable("teacher", (string)null);
                 });
 
             modelBuilder.Entity("SchoolProyectBackend.Models.User", b =>
@@ -371,65 +307,15 @@ namespace SchoolProyectBackend.Migrations
                     b.ToTable("user", (string)null);
                 });
 
-            modelBuilder.Entity("SchoolProyectBackend.Models.UserRelationship", b =>
-                {
-                    b.Property<int>("RelationID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RelationID"));
-
-                    b.Property<string>("RelationshipType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<int>("User1ID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("User2ID")
-                        .HasColumnType("int");
-
-                    b.HasKey("RelationID");
-
-                    b.HasIndex("User1ID", "User2ID", "RelationshipType")
-                        .IsUnique();
-
-                    b.ToTable("UserRelationships");
-                });
-
-            modelBuilder.Entity("Evaluation", b =>
-                {
-                    b.HasOne("SchoolProyectBackend.Models.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SchoolProyectBackend.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("SchoolProyectBackend.Models.Course", b =>
                 {
-                    b.HasOne("SchoolProyectBackend.Models.Teacher", null)
+                    b.HasOne("SchoolProyectBackend.Models.Teacher", "Teacher")
                         .WithMany("Courses")
-                        .HasForeignKey("TeacherID");
-
-                    b.HasOne("SchoolProyectBackend.Models.User", "User")
-                        .WithMany("Courses")
-                        .HasForeignKey("UserID")
+                        .HasForeignKey("TeacherID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("User");
+                    b.Navigation("Teacher");
                 });
 
             modelBuilder.Entity("SchoolProyectBackend.Models.Enrollment", b =>
@@ -476,17 +362,23 @@ namespace SchoolProyectBackend.Migrations
 
             modelBuilder.Entity("SchoolProyectBackend.Models.Notification", b =>
                 {
-                    b.HasOne("SchoolProyectBackend.Models.Student", null)
+                    b.HasOne("SchoolProyectBackend.Models.Parent", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentID");
+
+                    b.HasOne("SchoolProyectBackend.Models.Student", "Student")
                         .WithMany("Notifications")
                         .HasForeignKey("StudentID");
 
-                    b.HasOne("SchoolProyectBackend.Models.User", "User")
+                    b.HasOne("SchoolProyectBackend.Models.Teacher", "Teacher")
                         .WithMany()
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TeacherID");
 
-                    b.Navigation("User");
+                    b.Navigation("Parent");
+
+                    b.Navigation("Student");
+
+                    b.Navigation("Teacher");
                 });
 
             modelBuilder.Entity("SchoolProyectBackend.Models.NotificationRecip", b =>
@@ -533,7 +425,8 @@ namespace SchoolProyectBackend.Migrations
                 {
                     b.HasOne("SchoolProyectBackend.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("UserID");
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("User");
                 });
@@ -582,8 +475,6 @@ namespace SchoolProyectBackend.Migrations
 
             modelBuilder.Entity("SchoolProyectBackend.Models.User", b =>
                 {
-                    b.Navigation("Courses");
-
                     b.Navigation("Enrollments");
                 });
 #pragma warning restore 612, 618
