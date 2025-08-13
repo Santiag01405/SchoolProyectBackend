@@ -353,26 +353,49 @@
         }
 
         [HttpGet("active-count")]
-        public ActionResult<int> GetActiveUsersCount()
+        public ActionResult<int> GetActiveUsersCount([FromQuery] int schoolId)
         {
-            return _context.Users.Count();
+            return _context.Users.Count(u => u.SchoolID == schoolId);
         }
 
         [HttpGet("active-count-students")]
-        public ActionResult<int> GetActiveStudentsCount()
+        public ActionResult<int> GetActiveStudentsCount([FromQuery] int schoolId)
         {
-            return _context.Users.Count(u => u.RoleID == 1);
+            return _context.Users.Count(u => u.RoleID == 1 && u.SchoolID == schoolId);
         }
 
         [HttpGet("active-count-teachers")]
-        public ActionResult<int> GetActiveTeachersCount()
+        public ActionResult<int> GetActiveTeachersCount([FromQuery] int schoolId)
         {
-            return _context.Users.Count(u => u.RoleID == 2);
+            return _context.Users.Count(u => u.RoleID == 2 && u.SchoolID == schoolId);
         }
+
         [HttpGet("active-count-parents")]
-        public ActionResult<int> GetActiveParentsCount()
+        public ActionResult<int> GetActiveParentsCount([FromQuery] int schoolId)
         {
-            return _context.Users.Count(u => u.RoleID == 3);
+            return _context.Users.Count(u => u.RoleID == 3 && u.SchoolID == schoolId);
         }
+        /* [HttpGet("active-count")]
+         public ActionResult<int> GetActiveUsersCount()
+         {
+             return _context.Users.Count();
+         }
+
+         [HttpGet("active-count-students")]
+         public ActionResult<int> GetActiveStudentsCount()
+         {
+             return _context.Users.Count(u => u.RoleID == 1);
+         }
+
+         [HttpGet("active-count-teachers")]
+         public ActionResult<int> GetActiveTeachersCount()
+         {
+             return _context.Users.Count(u => u.RoleID == 2);
+         }
+         [HttpGet("active-count-parents")]
+         public ActionResult<int> GetActiveParentsCount()
+         {
+             return _context.Users.Count(u => u.RoleID == 3);
+         }*/
     }
 }

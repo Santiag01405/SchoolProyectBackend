@@ -87,5 +87,43 @@ namespace SchoolProyectBackend.Controllers
 
             return Ok(new { message = $"El estudiante {user.UserName} fue asignado al salón {classroom.Name}." });
         }
+
+        // Obtener un salón por su ID
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetClassroom(int id, [FromQuery] int schoolId)
+        {
+            var classroom = await _context.Classrooms
+                .FirstOrDefaultAsync(c => c.ClassroomID == id && c.SchoolID == schoolId);
+
+            if (classroom == null)
+            {
+                return NotFound("Salón no encontrado.");
+            }
+
+            return Ok(classroom);
+        }
+
+        // Obtener estudiantes en un salón
+        [HttpGet("{classroomId}/students")]
+        public async Task<IActionResult> GetStudentsInClassroom(int classroomId)
+        {
+            var classroom = await _context.Classrooms.FindAsync(classroomId);
+            if (classroom == null)
+            {
+                return NotFound("Salón no encontrado.");
+            }
+
+            var students = await _context.Users
+                .Where(u => u.ClassroomID == classroomId && u.RoleID == 1) // 1 es el RoleID para Estudiantes
+                .Select(u => new { u.UserID, u.UserName, u.Email })
+                .ToListAsync();
+
+            if (!students.Any())
+            {
+                return NotFound("No se encontraron estudiantes en este salón.");
+            }
+
+            return Ok(students);
+        }
     }
 }

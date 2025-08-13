@@ -23,9 +23,10 @@ namespace SchoolProyectBackend.Data
         public DbSet<Attendance> Attendance { get; set; }
         public DbSet<School> Schools { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
-
-
-
+        public DbSet<NurseVisit> NurseVisits { get; set; }
+        public DbSet<ExtracurricularActivity> ExtracurricularActivities { get; set; }
+        public DbSet<ExtracurricularEnrollment> ExtracurricularEnrollments { get; set; }
+        public DbSet<ExtracurricularAttendance> ExtracurricularAttendance { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

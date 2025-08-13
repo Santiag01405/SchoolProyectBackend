@@ -21,13 +21,13 @@ namespace SchoolProyectBackend.Models
 
         // Relaciones
         [JsonIgnore]
-        public ICollection<User> Users { get; set; }
-        public ICollection<Course> Courses { get; set; }
-        public ICollection<Evaluation> Evaluations { get; set; }
-        public ICollection<Enrollment> Enrollments { get; set; }
-        public ICollection<Notification> Notifications { get; set; }
-        public ICollection<UserRelationship> UserRelationships { get; set; }
-        public ICollection<Attendance> Attendance { get; set; }
+        public ICollection<User>? Users { get; set; }
+        public ICollection<Course>? Courses { get; set; }
+        public ICollection<Evaluation>? Evaluations { get; set; }
+        public ICollection<Enrollment>? Enrollments { get; set; }
+        public ICollection<Notification>? Notifications { get; set; }
+        public ICollection<UserRelationship>? UserRelationships { get; set; }
+        public ICollection<Attendance>? Attendance { get; set; }
        // public ICollection<Grade> Grades { get; set; }
     }
 }

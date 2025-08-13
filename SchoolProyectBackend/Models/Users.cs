@@ -20,7 +20,7 @@ namespace SchoolProyectBackend.Models
         public int? ClassroomID { get; set; }
 
         [ForeignKey("ClassroomID")]
-        public Classroom Classroom { get; set; }
+        public Classroom? Classroom { get; set; }
 
         public int RoleID { get; set; }
 
