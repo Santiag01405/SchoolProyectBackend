@@ -215,7 +215,7 @@
 
         //Nuevo PUT con schoolID integrado
 
-        [HttpPut("{id}")]
+        /*[HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] User userUpdate)
         {
             if (id != userUpdate.UserID)
@@ -226,6 +226,53 @@
                 return BadRequest(new { message = "El SchoolID no es válido." });
 
             _context.Entry(userUpdate).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!UserExists(id))
+                    return NotFound();
+
+                throw;
+            }
+        }*/
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] User userUpdate)
+        {
+            if (id != userUpdate.UserID)
+                return BadRequest();
+
+            var schoolExists = await _context.Schools.AnyAsync(s => s.SchoolID == userUpdate.SchoolID);
+            if (!schoolExists)
+                return BadRequest(new { message = "El SchoolID no es válido." });
+
+            // 1. En lugar de modificar la entidad completa, carga el usuario existente.
+            var existingUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserID == id);
+            if (existingUser == null)
+            {
+                return NotFound("Usuario no encontrado.");
+            }
+
+            // 2. Crea una nueva instancia de la entidad User con la información actualizada y el ClassroomID original.
+            var userToUpdate = new User
+            {
+                UserID = existingUser.UserID,
+                UserName = userUpdate.UserName ?? existingUser.UserName,
+                Email = userUpdate.Email ?? existingUser.Email,
+                PasswordHash = userUpdate.PasswordHash ?? existingUser.PasswordHash,
+                RoleID = userUpdate.RoleID,
+                SchoolID = userUpdate.SchoolID,
+                // Conserva el ClassroomID existente si no se proporciona uno nuevo
+                ClassroomID = userUpdate.ClassroomID ?? existingUser.ClassroomID
+            };
+
+            // 3. Marca la nueva entidad como modificada para que Entity Framework la actualice.
+            _context.Entry(userToUpdate).State = EntityState.Modified;
 
             try
             {
@@ -375,27 +422,6 @@
         {
             return _context.Users.Count(u => u.RoleID == 3 && u.SchoolID == schoolId);
         }
-        /* [HttpGet("active-count")]
-         public ActionResult<int> GetActiveUsersCount()
-         {
-             return _context.Users.Count();
-         }
-
-         [HttpGet("active-count-students")]
-         public ActionResult<int> GetActiveStudentsCount()
-         {
-             return _context.Users.Count(u => u.RoleID == 1);
-         }
-
-         [HttpGet("active-count-teachers")]
-         public ActionResult<int> GetActiveTeachersCount()
-         {
-             return _context.Users.Count(u => u.RoleID == 2);
-         }
-         [HttpGet("active-count-parents")]
-         public ActionResult<int> GetActiveParentsCount()
-         {
-             return _context.Users.Count(u => u.RoleID == 3);
-         }*/
+      
     }
 }

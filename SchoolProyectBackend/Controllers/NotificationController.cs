@@ -234,6 +234,58 @@ namespace SchoolProyectBackend.Controllers
             return Ok(new { message = "Notificación enviada a todos los usuarios de esta escuela.", count = notifications.Count });
         }
 
+
+        //Enviar a padres de un salón específico
+        [HttpPost("send-to-class")]
+        public async Task<IActionResult> SendNotificationToClass([FromQuery] int classroomId, [FromQuery] int schoolId, [FromBody] Notification notification)
+        {
+            if (notification == null || string.IsNullOrEmpty(notification.Title) || string.IsNullOrEmpty(notification.Content))
+            {
+                return BadRequest("La notificación debe tener un título y un contenido.");
+            }
+
+            // 1. Obtener los IDs de usuario de los estudiantes en el salón específico.
+            // Esto se hace a través de los "Enrollments" que están relacionados con los cursos del salón.
+            var studentUserIDs = await _context.Enrollments
+                .Where(e => e.Course.ClassroomID == classroomId && e.User.SchoolID == schoolId && e.User.RoleID == 1) // 1 es el RoleID para estudiantes
+                .Select(e => e.UserID)
+                .ToListAsync();
+
+            if (!studentUserIDs.Any())
+            {
+                return NotFound("No se encontraron estudiantes en el salón especificado.");
+            }
+
+            // 2. Obtener los IDs únicos de los padres de esos estudiantes usando la tabla de relaciones.
+            var parentIDs = await _context.UserRelationships
+                .Where(ur => studentUserIDs.Contains(ur.User1ID) &&
+                             ur.RelationshipType == "Padre-Hijo" &&
+                             ur.SchoolID == schoolId)
+                .Select(ur => ur.User2ID)
+                .Distinct() // Esto asegura que un mismo padre no reciba notificaciones duplicadas
+                .ToListAsync();
+
+            if (!parentIDs.Any())
+            {
+                return NotFound("No se encontraron padres asociados a los estudiantes en este salón.");
+            }
+
+            // 3. Crear y preparar las notificaciones para cada padre
+            var notificationsToSend = parentIDs.Select(parentID => new Notification
+            {
+                Title = notification.Title,
+                Content = notification.Content,
+                Date = DateTime.Now,
+                IsRead = false,
+                UserID = parentID,
+                SchoolID = schoolId
+            }).ToList();
+
+            _context.Notifications.AddRange(notificationsToSend);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Notificaciones enviadas correctamente a los padres del salón.", count = notificationsToSend.Count });
+        }
     }
 }
 
