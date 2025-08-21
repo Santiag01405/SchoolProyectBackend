@@ -16,7 +16,7 @@ namespace SchoolProyectBackend.Controllers
             _context = context;
         }
 
-        //Con schoolid
+        // Con schoolid
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetCourses([FromQuery] int schoolId)
         {
@@ -35,7 +35,7 @@ namespace SchoolProyectBackend.Controllers
             return Ok(courses);
         }
 
-        //Con schoolid
+        // Con schoolid
         [HttpGet("{id}")]
         public async Task<ActionResult<object>> GetCourse(int id, [FromQuery] int schoolId)
         {
@@ -57,8 +57,7 @@ namespace SchoolProyectBackend.Controllers
             return Ok(course);
         }
 
-
-        //Con schoolid
+        // Con schoolid
         [HttpPost("create")]
         public async Task<ActionResult<Course>> CreateCourse([FromBody] Course courseRequest)
         {
@@ -92,9 +91,7 @@ namespace SchoolProyectBackend.Controllers
             return CreatedAtAction(nameof(GetCourse), new { id = course.CourseID, schoolId = course.SchoolID }, course);
         }
 
-
-
-        //Con schoolid
+        // Con schoolid
         [HttpGet("user/{userId}/taught-courses")]
         public async Task<IActionResult> GetCoursesByTeacher(int userId, [FromQuery] int schoolId)
         {
@@ -115,8 +112,7 @@ namespace SchoolProyectBackend.Controllers
             return Ok(courses);
         }
 
-
-        //Con schoolid
+        // Con schoolid
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateCourse(int id, [FromBody] Course updatedCourse)
         {
@@ -141,14 +137,12 @@ namespace SchoolProyectBackend.Controllers
             return NoContent();
         }
 
-
         // 5. Eliminar un curso
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCourse(int id)
         {
             var course = await _context.Courses
                 .Include(c => c.Enrollments)
-                //.Include(c => c.Grades)
                 .FirstOrDefaultAsync(c => c.CourseID == id);
 
             if (course == null)
@@ -157,17 +151,12 @@ namespace SchoolProyectBackend.Controllers
             // 1. Eliminar inscripciones asociadas
             _context.Enrollments.RemoveRange(course.Enrollments);
 
-            // 2. Eliminar notas asociadas
-          //  if (course.Grades != null)
-            //    _context.Grades.RemoveRange(course.Grades);
-
-            // 3. Eliminar el curso
+            // 2. Eliminar el curso
             _context.Courses.Remove(course);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
-
 
         [HttpGet("active-count")]
         public ActionResult<int> GetActiveCoursesCount([FromQuery] int schoolId)
@@ -175,14 +164,76 @@ namespace SchoolProyectBackend.Controllers
             return _context.Courses.Count(c => c.SchoolID == schoolId);
         }
 
+        // Lógica corregida para asignar un curso a un salón e inscribir a los estudiantes
+        /*   [HttpPut("{courseId}/assign-classroom/{classroomId}")]
+           public async Task<IActionResult> AssignCourseToClassroom(int courseId, int classroomId)
+           {
+               try
+               {
+                   Console.WriteLine($"📌 Intentando asignar curso {courseId} al salón {classroomId}");
+
+                   var course = await _context.Courses
+                                               .Include(c => c.Enrollments)
+                                               .FirstOrDefaultAsync(c => c.CourseID == courseId);
+                   if (course == null)
+                       return NotFound("Curso no encontrado.");
+
+                   var classroom = await _context.Classrooms.FindAsync(classroomId);
+                   if (classroom == null)
+                       return NotFound("Salón no encontrado.");
+
+                   if (course.SchoolID != classroom.SchoolID)
+                       return BadRequest("El curso y el salón no pertenecen al mismo colegio.");
+
+                   if (course.ClassroomID.HasValue && course.ClassroomID != classroomId)
+                   {
+                       var oldEnrollments = await _context.Enrollments
+                           .Where(e => e.CourseID == courseId)
+                           .ToListAsync();
+                       _context.Enrollments.RemoveRange(oldEnrollments);
+                   }
+
+                   course.ClassroomID = classroomId;
+
+                   var studentsInClassroom = await _context.Users
+                       .Where(u => u.ClassroomID == classroomId && u.RoleID == 1)
+                       .ToListAsync();
+
+                   var newEnrollments = new List<Enrollment>();
+                   foreach (var student in studentsInClassroom)
+                   {
+                       var isAlreadyEnrolled = await _context.Enrollments
+                           .AnyAsync(e => e.UserID == student.UserID && e.CourseID == courseId);
+
+                       if (!isAlreadyEnrolled)
+                       {
+                           newEnrollments.Add(new Enrollment
+                           {
+                               UserID = student.UserID,
+                               CourseID = courseId,
+                               SchoolID = course.SchoolID
+                           });
+                       }
+                   }
+
+                   _context.Enrollments.AddRange(newEnrollments);
+                   await _context.SaveChangesAsync();
+
+                   Console.WriteLine($"✅ Curso '{course.Name}' asignado al salón '{classroom.Name}'. {newEnrollments.Count} estudiantes inscritos.");
+                   return Ok(new { message = $"Curso '{course.Name}' asignado al salón '{classroom.Name}' y estudiantes inscritos correctamente." });
+               }
+               catch (Exception ex)
+               {
+                   Console.WriteLine($"❌ Error en AssignCourseToClassroom: {ex.Message}");
+                   return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+               }
+           }*/
         [HttpPut("{courseId}/assign-classroom/{classroomId}")]
         public async Task<IActionResult> AssignCourseToClassroom(int courseId, int classroomId)
         {
             try
             {
-                Console.WriteLine($"📌 Intentando asignar curso {courseId} al salón {classroomId}");
-
-                var course = await _context.Courses.FindAsync(courseId);
+                var course = await _context.Courses.FirstOrDefaultAsync(c => c.CourseID == courseId);
                 if (course == null)
                     return NotFound("Curso no encontrado.");
 
@@ -193,11 +244,34 @@ namespace SchoolProyectBackend.Controllers
                 if (course.SchoolID != classroom.SchoolID)
                     return BadRequest("El curso y el salón no pertenecen al mismo colegio.");
 
+                // Eliminar TODAS las inscripciones existentes para el curso
+                var existingEnrollments = await _context.Enrollments
+                    .Where(e => e.CourseID == courseId)
+                    .ToListAsync();
+                _context.Enrollments.RemoveRange(existingEnrollments);
+
+                // Actualizar el curso con el nuevo ID de salón
                 course.ClassroomID = classroomId;
+
+                // Obtener la lista de estudiantes del salón (como lo hace tu endpoint de lectura)
+                var studentsInClassroom = await _context.Users
+                    .Where(u => u.ClassroomID == classroomId && u.RoleID == 1)
+                    .ToListAsync();
+
+                // Crear nuevas inscripciones para CADA estudiante de esa lista
+                var newEnrollments = studentsInClassroom.Select(student => new Enrollment
+                {
+                    UserID = student.UserID,
+                    CourseID = courseId,
+                    SchoolID = course.SchoolID
+                }).ToList();
+
+                _context.Enrollments.AddRange(newEnrollments);
+
+                // Guardar todos los cambios en la base de datos de una vez
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"✅ Curso {course.Name} asignado al salón {classroom.Name}.");
-                return Ok(new { message = $"Curso '{course.Name}' asignado al salón '{classroom.Name}' correctamente." });
+                return Ok(new { message = $"Curso '{course.Name}' asignado al salón '{classroom.Name}' y estudiantes inscritos correctamente." });
             }
             catch (Exception ex)
             {
@@ -205,7 +279,6 @@ namespace SchoolProyectBackend.Controllers
                 return StatusCode(500, $"Error interno del servidor: {ex.Message}");
             }
         }
-
-
     }
 }
+

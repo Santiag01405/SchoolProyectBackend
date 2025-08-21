@@ -57,19 +57,60 @@ namespace SchoolProyectBackend.Controllers
             return Ok(new { message = "Salón actualizado correctamente." });
         }
 
-        // Eliminar salón
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteClassroom(int id)
         {
             var classroom = await _context.Classrooms.FindAsync(id);
             if (classroom == null)
+            {
                 return NotFound("Salón no encontrado.");
+            }
 
+            // 1. Desvincular todos los estudiantes del salón
+            var studentsInClassroom = await _context.Users
+                .Where(u => u.ClassroomID == id)
+                .ToListAsync();
+
+            if (studentsInClassroom.Any())
+            {
+                foreach (var student in studentsInClassroom)
+                {
+                    student.ClassroomID = null;
+                }
+            }
+
+            // 2. Desvincular todos los cursos del salón
+            var coursesInClassroom = await _context.Courses
+                .Where(c => c.ClassroomID == id)
+                .ToListAsync();
+
+            if (coursesInClassroom.Any())
+            {
+                foreach (var course in coursesInClassroom)
+                {
+                    course.ClassroomID = null;
+                }
+            }
+
+            // 3. Eliminar todas las evaluaciones asociadas al salón
+            var evaluationsInClassroom = await _context.Evaluations
+                .Where(e => e.ClassroomID == id)
+                .ToListAsync();
+
+            if (evaluationsInClassroom.Any())
+            {
+                _context.Evaluations.RemoveRange(evaluationsInClassroom);
+            }
+
+            // 4. Guardar los cambios para desvincular los registros y eliminar evaluaciones
+            await _context.SaveChangesAsync();
+
+            // 5. Ahora es seguro eliminar el salón
             _context.Classrooms.Remove(classroom);
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Salón eliminado correctamente." });
-        }
 
+            return Ok(new { message = "Salón y sus registros relacionados eliminados correctamente." });
+        }
         // Asignar estudiante a un salón dentro de un colegio
         [HttpPut("assign/{userId}")]
         public async Task<IActionResult> AssignClassroomToStudent(int userId, [FromQuery] int classroomId)
@@ -104,18 +145,29 @@ namespace SchoolProyectBackend.Controllers
         }
 
         // Obtener estudiantes en un salón
+        // Obtener estudiantes en un salón
         [HttpGet("{classroomId}/students")]
-        public async Task<IActionResult> GetStudentsInClassroom(int classroomId)
+        public async Task<IActionResult> GetStudentsInClassroom(int classroomId, [FromQuery] int schoolId)
         {
             var classroom = await _context.Classrooms.FindAsync(classroomId);
-            if (classroom == null)
+            if (classroom == null || classroom.SchoolID != schoolId)
             {
-                return NotFound("Salón no encontrado.");
+                return NotFound("Salón no encontrado en esta escuela.");
             }
 
-            var students = await _context.Users
-                .Where(u => u.ClassroomID == classroomId && u.RoleID == 1) // 1 es el RoleID para Estudiantes
-                .Select(u => new { u.UserID, u.UserName, u.Email })
+            var students = await _context.Enrollments
+                .Where(e => e.SchoolID == schoolId) // Filtramos por escuela
+                .Include(e => e.Course)
+                .Where(e => e.Course.ClassroomID == classroomId) // Filtramos por el ID del salón del curso
+                .Include(e => e.User)
+                .Where(e => e.User.RoleID == 1) // Aseguramos que sea un estudiante (RoleID = 1)
+                .Select(e => new
+                {
+                    e.User.UserID,
+                    e.User.UserName,
+                    e.User.Email
+                })
+                .Distinct() // Evita duplicados si un estudiante está en varios cursos del mismo salón
                 .ToListAsync();
 
             if (!students.Any())

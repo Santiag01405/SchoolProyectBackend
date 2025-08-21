@@ -56,49 +56,6 @@ namespace SchoolProyectBackend.Controllers
             return Ok(students);
         }
 
-
-        /*  [HttpPost("assign")]
-          public async Task<IActionResult> AssignGrade([FromBody] Grade grade)
-          {
-              if (grade.UserID == 0 || grade.EvaluationID == null || grade.SchoolID == 0)
-                  return BadRequest("Datos incompletos.");
-
-              // Buscar el usuario (estudiante)
-              var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == grade.UserID);
-
-              // Buscar la evaluación
-              var evaluation = await _context.Evaluations.FirstOrDefaultAsync(e => e.EvaluationID == grade.EvaluationID);
-
-              if (user == null)
-                  return NotFound("Usuario no encontrado.");
-              if (evaluation == null)
-                  return NotFound("Evaluación no encontrada.");
-
-              // Validar escuela
-              if (user.SchoolID != grade.SchoolID)
-                  return BadRequest($"El usuario pertenece a otra escuela ({user.SchoolID}).");
-
-              if (evaluation.SchoolID != grade.SchoolID)
-                  return BadRequest($"La evaluación pertenece a otra escuela ({evaluation.SchoolID}).");
-
-              // Validar si ya existe la nota
-              var existingGrade = await _context.Grades
-                  .FirstOrDefaultAsync(g => g.UserID == grade.UserID && g.EvaluationID == grade.EvaluationID);
-
-              if (existingGrade != null)
-              {
-                  existingGrade.GradeValue = grade.GradeValue;
-                  existingGrade.Comments = grade.Comments;
-              }
-              else
-              {
-                  _context.Grades.Add(grade);
-              }
-
-              await _context.SaveChangesAsync();
-              return Ok(new { message = "Calificación registrada correctamente." });
-          }*/
-
         [HttpPost("assign")]
         public async Task<IActionResult> AssignGrade([FromBody] Grade grade)
         {
@@ -190,35 +147,108 @@ namespace SchoolProyectBackend.Controllers
         }
 
 
+        /*   [HttpGet("user/{userId}/grades")]
+           public async Task<IActionResult> GetGradesForUser(int userId, [FromQuery] int schoolId)
+           {
+               // Buscar usuario
+               var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId && u.SchoolID == schoolId);
+               if (user == null)
+                   return NotFound("Usuario no encontrado en esta escuela.");
+
+               List<int> usersToSearch = new();
+
+               if (user.RoleID == 1) // 1 = Estudiante
+               {
+                   usersToSearch.Add(userId);
+               }
+               else
+               {
+                   // Buscar hijos si el usuario es padre
+                   var children = await _context.UserRelationships
+                       .Where(ur => ur.User2ID == userId && ur.RelationshipType == "Padre-Hijo" && ur.SchoolID == schoolId)
+                       .Select(ur => ur.User1ID)
+                       .ToListAsync();
+
+                   if (!children.Any())
+                       return NotFound("No se encontraron hijos asociados a este usuario en esta escuela.");
+
+                   usersToSearch.AddRange(children);
+               }
+
+               // Obtener calificaciones
+               var grades = await _context.Grades
+                   .Include(g => g.Evaluation)
+                   .Include(g => g.Course)
+                   .Where(g => usersToSearch.Contains(g.UserID) && g.SchoolID == schoolId)
+                   .Select(g => new
+                   {
+                       g.GradeID,
+                       g.UserID,
+                       Estudiante = _context.Users.Where(u => u.UserID == g.UserID).Select(u => u.UserName).FirstOrDefault(),
+                       Curso = g.Course.Name,
+                       Evaluacion = g.Evaluation.Title,
+                       g.GradeValue,
+                       g.Comments
+                   })
+                   .ToListAsync();
+
+               if (!grades.Any())
+                   return NotFound("No se encontraron calificaciones para los filtros especificados.");
+
+               return Ok(grades);
+           }*/
+
+        [HttpGet("student/{studentId}/lapso/{lapsoId}")]
+        public async Task<IActionResult> GetGradesByLapso(int studentId, int lapsoId, [FromQuery] int schoolId)
+        {
+            // 1. Verificar si el estudiante existe y pertenece a la escuela
+            var student = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserID == studentId && u.SchoolID == schoolId);
+
+            if (student == null)
+            {
+                return NotFound("Estudiante no encontrado en este colegio.");
+            }
+
+            // 2. Obtener las notas del estudiante para el lapso especificado
+            var grades = await _context.Grades
+                .Where(g => g.UserID == studentId && g.SchoolID == schoolId && g.Evaluation.LapsoID == lapsoId)
+                .Include(g => g.Evaluation) // Incluir los datos de la evaluación
+                    .ThenInclude(e => e.Course) // Y los datos del curso de esa evaluación
+                .ToListAsync();
+
+            if (!grades.Any())
+            {
+                return NotFound("No se encontraron calificaciones para este estudiante en el lapso y colegio especificados.");
+            }
+
+            return Ok(grades);
+        }
+
+
         [HttpGet("user/{userId}/grades")]
         public async Task<IActionResult> GetGradesForUser(int userId, [FromQuery] int schoolId)
         {
-            // Buscar usuario
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId && u.SchoolID == schoolId);
             if (user == null)
                 return NotFound("Usuario no encontrado en esta escuela.");
 
             List<int> usersToSearch = new();
-
-            if (user.RoleID == 1) // 1 = Estudiante
+            if (user.RoleID == 1) // Estudiante
             {
                 usersToSearch.Add(userId);
             }
             else
             {
-                // Buscar hijos si el usuario es padre
                 var children = await _context.UserRelationships
                     .Where(ur => ur.User2ID == userId && ur.RelationshipType == "Padre-Hijo" && ur.SchoolID == schoolId)
                     .Select(ur => ur.User1ID)
                     .ToListAsync();
-
                 if (!children.Any())
                     return NotFound("No se encontraron hijos asociados a este usuario en esta escuela.");
-
                 usersToSearch.AddRange(children);
             }
 
-            // Obtener calificaciones
             var grades = await _context.Grades
                 .Include(g => g.Evaluation)
                 .Include(g => g.Course)
@@ -240,6 +270,42 @@ namespace SchoolProyectBackend.Controllers
 
             return Ok(grades);
         }
+        // 🟢 NUEVO ENDPOINT: Promedio de un Estudiante por Lapso
+        // GET: api/grades/student/{userId}/average-by-lapso?schoolId=1&lapsoId=1
+        [HttpGet("student/{userId}/average-by-lapso")]
+        public async Task<IActionResult> GetStudentAverageByLapso(int userId, [FromQuery] int schoolId, [FromQuery] int lapsoId)
+        {
+            if (userId == 0 || schoolId == 0 || lapsoId == 0)
+            {
+                return BadRequest("El ID del usuario, la escuela y el lapso son obligatorios.");
+            }
+
+            var studentProfile = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserID == userId && u.SchoolID == schoolId && u.RoleID == 1);
+
+            if (studentProfile == null)
+            {
+                return NotFound("Estudiante no encontrado en esta escuela.");
+            }
+
+            // ✅ Unimos con la tabla de Evaluaciones para poder filtrar por LapsoID.
+            var average = await _context.Grades
+                .Include(g => g.Evaluation)
+                .Where(g => g.UserID == userId && g.SchoolID == schoolId && g.Evaluation.LapsoID == lapsoId)
+                .Select(g => g.GradeValue)
+                .Where(g => g.HasValue)
+                .AverageAsync();
+
+            var result = new
+            {
+                StudentId = studentProfile.UserID,
+                StudentName = studentProfile.UserName,
+                AverageGrade = average
+            };
+
+            return Ok(result);
+        }
+
 
         [HttpGet("course/{courseId}/evaluations/all")]
         public async Task<IActionResult> GetEvaluationsByCourseAll(
@@ -288,110 +354,97 @@ namespace SchoolProyectBackend.Controllers
             return NoContent();
         }
 
-        //promedio del curso
-        /*[HttpGet("averages/by-course")]
-        public async Task<IActionResult> GetCourseAverages([FromQuery] int schoolId)
+
+        // Promedio General de un Estudiante
+        [HttpGet("student/{userId}/overall-average")]
+        public async Task<IActionResult> GetStudentOverallAverage(int userId, [FromQuery] int schoolId)
         {
-            if (schoolId == 0)
+            if (userId == 0 || schoolId == 0)
             {
-                return BadRequest("El ID de la escuela es obligatorio.");
+                return BadRequest("El ID del usuario y de la escuela son obligatorios.");
             }
 
-            var courseAverages = await _context.Grades
-                .Where(g => g.Course.SchoolID == schoolId)
-                .Include(g => g.Course) // Incluimos la info del curso para obtener el nombre
-                .GroupBy(g => new { g.CourseID, CourseName = g.Course.Name })
-                .Select(group => new
-                {
-                    CourseId = group.Key.CourseID,
-                    CourseName = group.Key.CourseName,
-                    AverageGrade = group.Average(g => g.GradeValue)
-                })
-                .ToListAsync();
-
-            if (!courseAverages.Any())
-            {
-                return NotFound("No se encontraron calificaciones para la escuela especificada.");
-            }
-
-            return Ok(courseAverages);
-        }
-
-        //promedio de estudiantes en un curso específico
-        [HttpGet("course/{courseId}/student-averages")]
-        public async Task<IActionResult> GetStudentAveragesInCourse(int courseId, [FromQuery] int schoolId)
-        {
-            if (courseId == 0 || schoolId == 0)
-            {
-                return BadRequest("El ID del curso y de la escuela son obligatorios.");
-            }
-
-            var studentAverages = await _context.Grades
-                // Primero, filtramos las notas por el curso y la escuela correctos
-                .Where(g => g.CourseID == courseId && g.Course.SchoolID == schoolId)
-                // Luego, incluimos las tablas relacionadas que necesitamos
-                .Include(g => g.Student)
-                    .ThenInclude(s => s.User) // Desde Student, traemos el User para el nombre
-                                              // Agrupamos por el ID y Nombre del estudiante
-                .GroupBy(g => new { StudentId = g.Student.StudentID, StudentName = g.Student.User.UserName })
-                .Select(group => new
-                {
-                    StudentId = group.Key.StudentId,
-                    StudentName = group.Key.StudentName,
-                    AverageGrade = group.Average(g => g.GradeValue)
-                })
-                .ToListAsync();
-
-            if (!studentAverages.Any())
-            {
-                return NotFound("No se encontraron calificaciones para los estudiantes en este curso.");
-            }
-
-            return Ok(studentAverages);
-        }
-
-        //promedio General de un estudiante
-        [HttpGet("student/{studentId}/overall-average")]
-        public async Task<IActionResult> GetStudentOverallAverage(int studentId, [FromQuery] int schoolId)
-        {
-            if (studentId == 0 || schoolId == 0)
-            {
-                return BadRequest("El ID del estudiante y de la escuela son obligatorios.");
-            }
-
-            var studentProfile = await _context.Students
-                                             .Include(s => s.User)
-                                             .FirstOrDefaultAsync(s => s.UserID == studentId && s.User.SchoolID == schoolId);
+            var studentProfile = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserID == userId && u.SchoolID == schoolId && u.RoleID == 1);
 
             if (studentProfile == null)
             {
                 return NotFound("Estudiante no encontrado en esta escuela.");
             }
 
-            // CAMBIO CLAVE AQUÍ:
-            // En lugar de traer todos los campos, seleccionamos solo el valor de la nota.
-            var studentGradeValues = await _context.Grades
-                .Where(g => g.StudentID == studentProfile.StudentID)
-                .Select(g => g.GradeValue) // <-- ¡Añade este Select!
-                .ToListAsync();
-
-            if (!studentGradeValues.Any())
-            {
-                return NotFound("No se encontraron calificaciones para este estudiante.");
-            }
-
-            // Ahora calculamos el promedio sobre la lista de valores.
-            var overallAverage = studentGradeValues.Average();
+            var overallAverage = await _context.Grades
+                .Where(g => g.UserID == userId && g.SchoolID == schoolId)
+                .Select(g => g.GradeValue)
+                .Where(g => g.HasValue) // Solo promedia notas que tienen un valor
+                .AverageAsync();
 
             var result = new
             {
-                StudentId = studentProfile.StudentID,
-                StudentName = studentProfile.User.UserName,
+                StudentId = studentProfile.UserID,
+                StudentName = studentProfile.UserName,
                 OverallAverage = overallAverage
             };
 
             return Ok(result);
-        }*/
+        }
+
+
+
+        [HttpGet("student/{studentId}/course/{courseId}/average")]
+        public async Task<IActionResult> GetStudentCourseAverage(int studentId, int courseId, [FromQuery] int schoolId)
+        {
+            if (studentId == 0 || courseId == 0 || schoolId == 0)
+            {
+                return BadRequest("El ID del estudiante, curso y escuela son obligatorios.");
+            }
+
+            var studentCourseGrades = await _context.Grades
+                .Where(g => g.UserID == studentId && g.CourseID == courseId && g.SchoolID == schoolId)
+                .Select(g => g.GradeValue)
+                .Where(g => g.HasValue) // Solo promedia notas que tienen un valor asignado
+                .ToListAsync();
+
+            if (!studentCourseGrades.Any())
+            {
+                return NotFound("No se encontraron calificaciones para este estudiante en el curso especificado.");
+            }
+
+            var average = studentCourseGrades.Average();
+            var result = new
+            {
+                StudentId = studentId,
+                CourseId = courseId,
+                AverageGrade = average
+            };
+
+            return Ok(result);
+        }
+
+
+        // Promedio de un Curso (de todos los estudiantes)
+        [HttpGet("course/{courseId}/average")]
+        public async Task<IActionResult> GetCourseAverage(int courseId, [FromQuery] int schoolId)
+        {
+            if (courseId == 0 || schoolId == 0)
+            {
+                return BadRequest("El ID del curso y de la escuela son obligatorios.");
+            }
+
+            var courseAverage = await _context.Grades
+                .Where(g => g.CourseID == courseId && g.SchoolID == schoolId)
+                .Select(g => g.GradeValue)
+                .Where(g => g.HasValue) // Solo promedia notas que tienen un valor
+                .AverageAsync();
+
+            var result = new
+            {
+                CourseId = courseId,
+                AverageGrade = courseAverage
+            };
+
+            return Ok(result);
+        }
+
 
         [HttpPost("assign-evaluation")]
         public async Task<IActionResult> AssignEvaluationToStudent([FromBody] Grade grade)
@@ -461,6 +514,20 @@ namespace SchoolProyectBackend.Controllers
                 }
                 await _context.SaveChangesAsync();
             }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetEvaluationsByStudent(int studentId, [FromQuery] int? lapsoId)
+        {
+            var query = _context.Evaluations.Where(e => e.UserID == studentId);
+
+            if (lapsoId.HasValue)
+            {
+                query = query.Where(e => e.LapsoID == lapsoId.Value);
+            }
+
+            var evaluaciones = await query.ToListAsync();
+            return Ok(evaluaciones);
         }
     }
 }

@@ -21,6 +21,22 @@ namespace SchoolProyectBackend.Controllers
             _context = context;
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetRelationshipById(int id)
+        {
+            var relationship = await _context.UserRelationships
+                .Include(ur => ur.User1)
+                .Include(ur => ur.User2)
+                .FirstOrDefaultAsync(ur => ur.RelationID == id);
+
+            if (relationship == null)
+            {
+                return NotFound("Relación no encontrada.");
+            }
+
+            return Ok(relationship);
+        }
+
         // 🔹 Crear relación entre usuarios (Ej: Padre-Hijo, Profesor-Estudiante)
         [HttpPost("create")]
         public async Task<IActionResult> CreateRelationship([FromBody] UserRelationship relationship)
@@ -93,30 +109,120 @@ namespace SchoolProyectBackend.Controllers
             return Ok(students);
         }
 
-        // ******************** NUEVO ENDPOINT PARA PADRES AÑADIDO ********************
+
         // GET: api/relationships/user/{userId}/children
+        // Obtiene los hijos (estudiantes) de un padre
+        /*  [HttpGet("user/{userId}/children")]
+          public async Task<IActionResult> GetChildrenOfParent(int userId, [FromQuery] int schoolId)
+          {
+              var children = await _context.Users
+                  .Where(s => s.RoleID == 1 && // Asegurarnos de que solo buscamos estudiantes
+                              _context.UserRelationships
+                                  .Any(ur =>
+                                      ur.User2ID == userId &&        
+                                      ur.User1ID == s.UserID &&        
+                                      ur.RelationshipType == "Padre-Hijo" &&
+                                      ur.SchoolID == schoolId))
+                  .Select(s => new {
+                      UserID = s.UserID,
+                      StudentName = s.UserName 
+                  })
+                  .ToListAsync();
+
+              return Ok(children);
+          }*/
+
+
         // Obtiene los hijos (estudiantes) de un padre
         [HttpGet("user/{userId}/children")]
         public async Task<IActionResult> GetChildrenOfParent(int userId, [FromQuery] int schoolId)
         {
-            var children = await _context.Users
-                .Where(s => s.RoleID == 1 && // Asegurarnos de que solo buscamos estudiantes
-                            _context.UserRelationships
-                                .Any(ur =>
-                                    ur.User2ID == userId &&           // UserID del Padre
-                                    ur.User1ID == s.UserID &&         // UserID del Hijo (Estudiante)
-                                    ur.RelationshipType == "Padre-Hijo" &&
-                                    ur.SchoolID == schoolId))
-                .Select(s => new {
-                    UserID = s.UserID,
-                    StudentName = s.UserName // Mapeamos UserName a StudentName para que coincida con el modelo del frontend
+            var children = await _context.UserRelationships
+                .Where(ur => ur.User2ID == userId &&
+                             ur.RelationshipType == "Padre-Hijo" &&
+                             ur.SchoolID == schoolId)
+                .Include(ur => ur.User1) // Incluimos el objeto de usuario completo del hijo
+                .Select(ur => new
+                {
+                    RelationID = ur.RelationID,
+                    UserID = ur.User1ID,
+                    StudentName = ur.User1.UserName,
+                    Email = ur.User1.Email // Agregamos el email para la vista
                 })
                 .ToListAsync();
 
-            // Es mejor devolver una lista vacía que un 404 si el padre no tiene hijos registrados.
-            // La app móvil puede manejar una lista vacía sin problemas.
             return Ok(children);
         }
+
+        [HttpGet("school/{schoolId}")]
+        public async Task<IActionResult> GetAllRelationshipsBySchool(int schoolId)
+        {
+            var relationships = await _context.UserRelationships
+                .Where(ur => ur.SchoolID == schoolId)
+                .Include(ur => ur.User1ID) // Cargar datos del primer usuario
+                .Include(ur => ur.User2ID) // Cargar datos del segundo usuario
+                .ToListAsync();
+
+            if (relationships == null || !relationships.Any())
+            {
+                // Devolvemos un OK con una lista vacía si no hay relaciones,
+                // ya que es un escenario válido.
+                return Ok(new List<UserRelationship>());
+            }
+            return Ok(relationships);
+        }
+
         // ***************************************************************************
+
+        // PUT: api/relationships/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateRelationship(int id, [FromBody] UserRelationship updatedRelationship)
+        {
+            if (id != updatedRelationship.RelationID)
+            {
+                return BadRequest("El ID de la ruta no coincide con el ID de la relación.");
+            }
+
+            var relationship = await _context.UserRelationships.FindAsync(id);
+            if (relationship == null)
+            {
+                return NotFound("Relación no encontrada.");
+            }
+
+            // Validar que los usuarios de la relación actualizada existan
+            var user1 = await _context.Users.FindAsync(updatedRelationship.User1ID);
+            var user2 = await _context.Users.FindAsync(updatedRelationship.User2ID);
+
+            if (user1 == null || user2 == null)
+            {
+                return BadRequest("Uno de los usuarios de la relación actualizada no existe.");
+            }
+
+            // Actualizar las propiedades de la relación existente
+            relationship.User1ID = updatedRelationship.User1ID;
+            relationship.User2ID = updatedRelationship.User2ID;
+            relationship.RelationshipType = updatedRelationship.RelationshipType;
+            relationship.SchoolID = updatedRelationship.SchoolID;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Relación actualizada correctamente." });
+        }
+
+        // 🆕 **NUEVO ENDPOINT**: Eliminar una relación por ID
+        // DELETE: api/relationships/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteRelationship(int id)
+        {
+            var relationship = await _context.UserRelationships.FindAsync(id);
+            if (relationship == null)
+            {
+                return NotFound("Relación no encontrada.");
+            }
+
+            _context.UserRelationships.Remove(relationship);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Relación eliminada correctamente." });
+        } 
     }
 }

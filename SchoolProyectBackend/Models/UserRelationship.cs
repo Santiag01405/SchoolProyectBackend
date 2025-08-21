@@ -21,5 +21,11 @@ namespace SchoolProyectBackend.Models
 
         public int SchoolID { get; set; }
         public School? School { get; set; }
+
+        [ForeignKey("User1ID")]
+        public User? User1 { get; set; } // El usuario con el User1ID
+
+        [ForeignKey("User2ID")]
+        public User? User2 { get; set; } // El usuario con el User2ID
     }
 }

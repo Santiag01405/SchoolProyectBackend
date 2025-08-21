@@ -62,9 +62,6 @@ public class ExtracurricularController : ControllerBase
         return CreatedAtAction(nameof(GetExtracurricularActivity), new { id = activity.ActivityID, schoolId = activity.SchoolID }, activity);
     }
 
-    
-
-    // 🔹 PUT: api/extracurriculars/{id} (Actualizar una actividad)
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateExtracurricularActivity(int id, [FromBody] ExtracurricularActivityCreateDto activityDto)
     {
@@ -110,20 +107,41 @@ public class ExtracurricularController : ControllerBase
         return NoContent(); // Código 204: Éxito sin devolver contenido
     }
 
-
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteExtracurricularActivity(int id, [FromQuery] int schoolId)
     {
+        // 1. Buscamos la actividad para asegurarnos de que existe y pertenece a la escuela
         var activity = await _context.ExtracurricularActivities
             .Where(a => a.ActivityID == id && a.SchoolID == schoolId)
             .FirstOrDefaultAsync();
 
         if (activity == null)
+        {
             return NotFound("Actividad no encontrada para esta escuela.");
+        }
 
+        // 2. Buscamos todas las inscripciones relacionadas con esta actividad y las eliminamos
+        var enrollments = await _context.ExtracurricularEnrollments
+            .Where(e => e.ActivityID == id)
+            .ToListAsync();
+
+        _context.ExtracurricularEnrollments.RemoveRange(enrollments);
+
+        // 3. Ahora que las inscripciones ya no existen, podemos eliminar la actividad
         _context.ExtracurricularActivities.Remove(activity);
-        await _context.SaveChangesAsync();
 
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            // Esto captura cualquier error de base de datos
+            // Puedes loggear el 'ex.InnerException' para obtener más detalles del error real
+            return StatusCode(500, "Error al eliminar la actividad. Asegúrate de que no existan otras relaciones no gestionadas.");
+        }
+
+        // Retornamos un código 204 para indicar que la eliminación fue exitosa
         return NoContent();
     }
 }

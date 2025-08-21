@@ -27,6 +27,7 @@ namespace SchoolProyectBackend.Data
         public DbSet<ExtracurricularActivity> ExtracurricularActivities { get; set; }
         public DbSet<ExtracurricularEnrollment> ExtracurricularEnrollments { get; set; }
         public DbSet<ExtracurricularAttendance> ExtracurricularAttendance { get; set; }
+        public DbSet<Lapso> Lapsos { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

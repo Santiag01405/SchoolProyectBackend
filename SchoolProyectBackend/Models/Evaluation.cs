@@ -1,5 +1,6 @@
 ﻿using SchoolProyectBackend.Models;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 public class Evaluation
@@ -34,4 +35,10 @@ public class Evaluation
 
     [JsonIgnore]
     public User? User { get; set; }
+
+    [Required]
+    public int LapsoID { get; set; } // Clave foránea para vincular a un lapso
+
+    [ForeignKey("LapsoID")]
+    public Lapso? Lapso { get; set; } // Propiedad de navegación
 }
