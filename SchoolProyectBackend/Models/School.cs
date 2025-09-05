@@ -16,6 +16,10 @@ namespace SchoolProyectBackend.Models
         public string Phone { get; set; }
         public string Email { get; set; }
 
+        public int? OrganizationID { get; set; }
+        public Organization? Organization { get; set; }
+
+
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 

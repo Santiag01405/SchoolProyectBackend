@@ -24,20 +24,52 @@
         }*/
 
         //Nuevo GET con schoolID integrado
+        // GET: api/users?schoolId=5
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers([FromQuery] int schoolId)
         {
             try
             {
-                Console.WriteLine($"🔍 Buscando usuarios para el SchoolID: {schoolId}");
+                Console.WriteLine($"🔍 Listando usuarios para SchoolID: {schoolId}");
 
-                var users = await _context.Users
-                    .Where(u => u.SchoolID == schoolId)
+                // 1) Todos los usuarios que sí pertenecen a la sede (alumnos, profesores, padres, admins, etc.)
+                var usersInSchool = _context.Users
+                    .Where(u => u.SchoolID == schoolId);
+
+                // 2) IDs de estudiantes de la sede
+                var studentIdsInSchool = _context.Users
+                    .Where(u => u.RoleID == 1 && u.SchoolID == schoolId)
+                    .Select(u => u.UserID);
+
+                // 3) Padres (de cualquier sede) relacionados a esos estudiantes
+                var parentIdsLinkedToSchool = _context.UserRelationships
+                    .Where(ur => ur.RelationshipType == "Padre-Hijo"
+                                 && studentIdsInSchool.Contains(ur.User1ID))
+                    .Select(ur => ur.User2ID)
+                    .Distinct();
+
+                var parentsLinked = _context.Users
+                    .Where(u => u.RoleID == 3 && parentIdsLinkedToSchool.Contains(u.UserID));
+
+                // 4) Unión, evitando duplicados
+                //    (Union ya evita duplicados si EF puede comparar por igualdad. Para asegurar,
+                //    puedes agrupar por UserID después del ToList).
+                var unionQuery = usersInSchool.Union(parentsLinked);
+
+                var list = await unionQuery
+                    .OrderBy(u => u.RoleID)         // opcional: orden por rol
+                    .ThenBy(u => u.UserName)        // y por nombre
                     .ToListAsync();
 
-                Console.WriteLine($"✅ Se encontraron {users.Count} usuarios");
+                // Garantiza unicidad por UserID (por si acaso)
+                var result = list
+                    .GroupBy(u => u.UserID)
+                    .Select(g => g.First())
+                    .ToList();
 
-                return Ok(users);
+                Console.WriteLine($"✅ Total devueltos (incl. padres vinculados de otras sedes): {result.Count}");
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -45,6 +77,7 @@
                 return StatusCode(500, $"Error interno: {ex.Message}");
             }
         }
+
 
 
         // GET: api/users/{id} (Obtener un usuario por ID)
@@ -144,12 +177,21 @@
              }
          }*/
 
-        //Nuevo POST con schoolIFD integrado
         [HttpPost]
         public async Task<ActionResult<User>> CreateUser([FromBody] User user)
         {
             if (user == null)
                 return BadRequest(new { message = "El usuario no puede ser nulo" });
+
+            // ✅ Validación: Verificar si ya existe un usuario con la misma cédula
+            // y en el mismo colegio.
+            var cedulaExists = await _context.Users
+                .AnyAsync(u => u.Cedula == user.Cedula && u.SchoolID == user.SchoolID);
+
+            if (cedulaExists)
+            {
+                return Conflict(new { message = "Ya existe un usuario con esta cédula en el mismo colegio." });
+            }
 
             var schoolExists = await _context.Schools.AnyAsync(s => s.SchoolID == user.SchoolID);
             if (!schoolExists)
@@ -163,11 +205,69 @@
             }
             catch (DbUpdateException ex)
             {
+                // ... (Tu código actual para manejar errores de la base de datos se mantiene)
                 return StatusCode(500, new { message = "Error en la base de datos", error = ex.Message });
             }
             catch (Exception ex)
             {
+                // ... (Tu código actual para manejar errores inesperados se mantiene)
                 return StatusCode(500, new { message = "Error inesperado", error = ex.Message });
+            }
+        }
+
+        [HttpGet("by-cedula/{cedula}")]
+        public async Task<IActionResult> GetUserByCedula(string cedula, [FromQuery] int schoolId)
+        {
+            try
+            {
+                Console.WriteLine($"🔍 Buscando usuario con cédula: {cedula} para el SchoolID: {schoolId}");
+
+                // 1) Buscar usuario en la misma sede
+                var userInSchool = await _context.Users
+                    .Include(u => u.School)
+                    .FirstOrDefaultAsync(u => u.Cedula == cedula && u.SchoolID == schoolId);
+
+                if (userInSchool != null)
+                {
+                    Console.WriteLine($"✅ Usuario encontrado en la sede: {userInSchool.UserName}, con cédula: {userInSchool.Cedula}");
+                    return Ok(userInSchool);
+                }
+
+                // 2) Si no está en la sede, revisar si es un padre relacionado a un estudiante de esta sede
+                var studentIdsInSchool = await _context.Users
+                    .Where(u => u.RoleID == 1 && u.SchoolID == schoolId)
+                    .Select(u => u.UserID)
+                    .ToListAsync();
+
+                if (!studentIdsInSchool.Any())
+                {
+                    return NotFound(new { message = "No hay estudiantes en esta sede para validar relaciones." });
+                }
+
+                var parentIdsLinked = await _context.UserRelationships
+                    .Where(ur => ur.RelationshipType == "Padre-Hijo" &&
+                                 studentIdsInSchool.Contains(ur.User1ID))
+                    .Select(ur => ur.User2ID)
+                    .Distinct()
+                    .ToListAsync();
+
+                var parentUser = await _context.Users
+                    .Include(u => u.School)
+                    .FirstOrDefaultAsync(u => parentIdsLinked.Contains(u.UserID) && u.Cedula == cedula);
+
+                if (parentUser != null)
+                {
+                    Console.WriteLine($"✅ Padre encontrado en otra sede: {parentUser.UserName}, con cédula: {parentUser.Cedula}");
+                    return Ok(parentUser);
+                }
+
+                Console.WriteLine("⚠ Usuario no encontrado.");
+                return NotFound(new { message = "Usuario no encontrado en la sede ni como padre relacionado." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ ERROR en GetUserByCedula: {ex.Message}");
+                return StatusCode(500, $"Error interno: {ex.Message}");
             }
         }
 
@@ -375,22 +475,51 @@
 
         //Nuevo search con SchoolID integrado
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<User>>> SearchUsers([FromQuery] string query, [FromQuery] int schoolId)
+        public async Task<ActionResult<IEnumerable<User>>> SearchUsers(
+    [FromQuery] string query,
+    [FromQuery] int schoolId)
         {
             if (string.IsNullOrWhiteSpace(query))
                 return BadRequest("Debe proporcionar un término de búsqueda.");
 
-            var users = await _context.Users
-                .Where(u =>
-                    (u.RoleID == 1 || u.RoleID == 3) &&
-                    u.UserName.Contains(query) &&
-                    u.SchoolID == schoolId
-                ).ToListAsync();
+            query = query.Trim();
 
-            if (!users.Any())
-                return NotFound("No se encontraron usuarios con ese nombre.");
+            // IDs de estudiantes en la sede
+            var studentIdsInSchool = _context.Users
+                .Where(u => u.RoleID == 1 && u.SchoolID == schoolId)
+                .Select(u => u.UserID);
 
-            return Ok(users);
+            // Padres relacionados a esos estudiantes (sin importar SchoolID del padre)
+            var parentIdsLinkedToSchool = _context.UserRelationships
+                .Where(ur => ur.RelationshipType == "Padre-Hijo"
+                             && studentIdsInSchool.Contains(ur.User1ID))
+                .Select(ur => ur.User2ID)
+                .Distinct();
+
+            // Alumnos de la sede que matcheen por nombre o cédula
+            var studentsQuery = _context.Users
+                .Where(u => u.RoleID == 1 && u.SchoolID == schoolId &&
+                            (EF.Functions.Like(u.UserName, $"%{query}%") ||
+                             EF.Functions.Like(u.Cedula, $"%{query}%")));
+
+            // Padres (de cualquier sede) que matcheen y estén relacionados a alumnos de esta sede
+            var parentsQuery = _context.Users
+                .Where(u => u.RoleID == 3 &&
+                            parentIdsLinkedToSchool.Contains(u.UserID) &&
+                            (EF.Functions.Like(u.UserName, $"%{query}%") ||
+                             EF.Functions.Like(u.Cedula, $"%{query}%")));
+
+            // Unión y tope de resultados
+            var result = await studentsQuery
+                .Union(parentsQuery)
+                .OrderBy(u => u.UserName)
+                .Take(50)
+                .ToListAsync();
+
+            if (!result.Any())
+                return NotFound("No se encontraron usuarios con el criterio indicado.");
+
+            return Ok(result);
         }
 
         [HttpGet("active-count-by-school")]

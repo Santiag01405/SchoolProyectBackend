@@ -28,9 +28,15 @@ namespace SchoolProyectBackend.Controllers
 
             return lapso?.LapsoID;
         }
-       
+        private DateTime GetVenezuelanTime()
+        {
+            var venezuelaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Venezuela Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, venezuelaTimeZone);
+        }
+
+
         [HttpGet]
-        public async Task<IActionResult> GetEvaluations([FromQuery] int userID, [FromQuery] int schoolId)
+        public async Task<IActionResult> GetEvaluations([FromQuery] int userID, [FromQuery] int schoolId, [FromQuery] int? lapsoId, [FromQuery] int? courseId)
         {
             try
             {
@@ -42,12 +48,12 @@ namespace SchoolProyectBackend.Controllers
 
                 IQueryable<Evaluation> evaluationsQuery;
 
-                if (user.RoleID == 2) // Si el usuario es un profesor
+                if (user.RoleID == 2)
                 {
                     evaluationsQuery = _context.Evaluations
                         .Where(e => e.UserID == userID && e.SchoolID == schoolId);
                 }
-                else // Si el usuario es un estudiante o tiene otro rol
+                else
                 {
                     var userCourseIds = await _context.Enrollments
                         .Where(e => e.UserID == userID && e.SchoolID == schoolId)
@@ -63,10 +69,19 @@ namespace SchoolProyectBackend.Controllers
                         .Where(e => userCourseIds.Contains(e.CourseID) && e.SchoolID == schoolId);
                 }
 
-                // ✅ CORRECCIÓN: Usar .Include() para cargar los datos relacionados
+                // ✅ FILTROS ADICIONALES APLICADOS AQUÍ
+                if (lapsoId.HasValue)
+                {
+                    evaluationsQuery = evaluationsQuery.Where(e => e.LapsoID == lapsoId.Value);
+                }
+                if (courseId.HasValue)
+                {
+                    evaluationsQuery = evaluationsQuery.Where(e => e.CourseID == courseId.Value);
+                }
+
                 var evaluations = await evaluationsQuery
-                    .Include(e => e.Course) // Incluye el objeto Course completo
-                    .Include(e => e.Lapso)  // Incluye el objeto Lapso completo
+                    .Include(e => e.Course)
+                    .Include(e => e.Lapso)
                     .OrderBy(e => e.Date)
                     .ToListAsync();
 
@@ -83,6 +98,60 @@ namespace SchoolProyectBackend.Controllers
                 return StatusCode(500, "Error interno del servidor.");
             }
         }
+        /*   [HttpGet]
+           public async Task<IActionResult> GetEvaluations([FromQuery] int userID, [FromQuery] int schoolId)
+           {
+               try
+               {
+                   var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userID);
+                   if (user == null || user.SchoolID != schoolId)
+                   {
+                       return NotFound("Usuario no encontrado en este colegio.");
+                   }
+
+                   IQueryable<Evaluation> evaluationsQuery;
+
+                   if (user.RoleID == 2) // Si el usuario es un profesor
+                   {
+                       evaluationsQuery = _context.Evaluations
+                           .Where(e => e.UserID == userID && e.SchoolID == schoolId);
+                   }
+                   else // Si el usuario es un estudiante o tiene otro rol
+                   {
+                       var userCourseIds = await _context.Enrollments
+                           .Where(e => e.UserID == userID && e.SchoolID == schoolId)
+                           .Select(e => e.CourseID)
+                           .ToListAsync();
+
+                       if (!userCourseIds.Any())
+                       {
+                           return NotFound("El usuario no está inscrito en ningún curso en este colegio.");
+                       }
+
+                       evaluationsQuery = _context.Evaluations
+                           .Where(e => userCourseIds.Contains(e.CourseID) && e.SchoolID == schoolId);
+                   }
+
+                   // ✅ CORRECCIÓN: Usar .Include() para cargar los datos relacionados
+                   var evaluations = await evaluationsQuery
+                       .Include(e => e.Course) // Incluye el objeto Course completo
+                       .Include(e => e.Lapso)  // Incluye el objeto Lapso completo
+                       .OrderBy(e => e.Date)
+                       .ToListAsync();
+
+                   if (!evaluations.Any())
+                   {
+                       return NotFound("No se encontraron evaluaciones para este usuario en este colegio.");
+                   }
+
+                   return Ok(evaluations);
+               }
+               catch (Exception ex)
+               {
+                   Console.WriteLine($"❌ Error en GetEvaluations: {ex.Message}");
+                   return StatusCode(500, "Error interno del servidor.");
+               }
+           }*/
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Evaluation>> GetEvaluation(int id, int schoolId)
@@ -221,6 +290,8 @@ namespace SchoolProyectBackend.Controllers
                     .Select(ur => ur.User2ID)
                     .ToListAsync();
 
+                var venezuelaTime = GetVenezuelanTime();
+
                 foreach (var parentId in parents)
                 {
                     var parentNotification = new Notification
@@ -229,7 +300,7 @@ namespace SchoolProyectBackend.Controllers
                         Title = "Nueva Evaluación Asignada",
                         Content = $"Se ha asignado una nueva evaluación: '{evaluation.Title}' para tu hijo/a **{student.UserName}** en el curso de {course.Name}.",
                         IsRead = false,
-                        Date = DateTime.Now,
+                        Date = venezuelaTime,
                         SchoolID = evaluation.SchoolID
                     };
                     _context.Notifications.Add(parentNotification);

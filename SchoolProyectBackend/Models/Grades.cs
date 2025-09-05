@@ -8,6 +8,7 @@ public class Grade
     public int? EvaluationID { get; set; }
     public int SchoolID { get; set; }
     public decimal? GradeValue { get; set; }
+    public string? GradeText { get; set; }
     public string? Comments { get; set; }
 
     // 🔹 Relaciones (Opcionales)

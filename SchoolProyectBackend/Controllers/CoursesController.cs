@@ -17,18 +17,26 @@ namespace SchoolProyectBackend.Controllers
         }
 
         // Con schoolid
+        // Modificado para incluir el nombre del profesor
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetCourses([FromQuery] int schoolId)
         {
             var courses = await _context.Courses
-                .Where(c => c.SchoolID == schoolId)
-                .Select(c => new
+                // ✅ JOIN con la tabla de Users para obtener el nombre del profesor
+                .Join(_context.Users,
+                    course => course.UserID,
+                    user => user.UserID,
+                    (course, user) => new { Course = course, User = user })
+                .Where(joined => joined.Course.SchoolID == schoolId)
+                .Select(joined => new
                 {
-                    c.CourseID,
-                    c.Name,
-                    c.Description,
-                    DayOfWeek = c.DayOfWeek ?? 0,
-                    UserID = c.UserID ?? 0
+                    joined.Course.CourseID,
+                    joined.Course.Name,
+                    joined.Course.Description,
+                    DayOfWeek = joined.Course.DayOfWeek ?? 0,
+                    joined.Course.UserID,
+                    // ✅ Se añade el nombre del profesor
+                    TeacherName = joined.User.UserName
                 })
                 .ToListAsync();
 
@@ -36,18 +44,25 @@ namespace SchoolProyectBackend.Controllers
         }
 
         // Con schoolid
+        // Modificado para incluir el nombre del profesor
         [HttpGet("{id}")]
         public async Task<ActionResult<object>> GetCourse(int id, [FromQuery] int schoolId)
         {
             var course = await _context.Courses
-                .Where(c => c.CourseID == id && c.SchoolID == schoolId)
-                .Select(c => new
+                // ✅ JOIN con la tabla de Users para obtener el nombre del profesor
+                .Join(_context.Users,
+                    c => c.UserID,
+                    u => u.UserID,
+                    (c, u) => new { Course = c, User = u })
+                .Where(joined => joined.Course.CourseID == id && joined.Course.SchoolID == schoolId)
+                .Select(joined => new
                 {
-                    c.CourseID,
-                    c.Name,
-                    Description = c.Description ?? "Sin descripción",
-                    DayOfWeek = c.DayOfWeek ?? 0,
-                    UserID = c.UserID ?? 0
+                    joined.Course.CourseID,
+                    joined.Course.Name,
+                    Description = joined.Course.Description ?? "Sin descripción",
+                    DayOfWeek = joined.Course.DayOfWeek ?? 0,
+                    joined.Course.UserID,
+                    TeacherName = joined.User.UserName
                 })
                 .FirstOrDefaultAsync();
 
