@@ -28,6 +28,8 @@ namespace SchoolProyectBackend.Data
         public DbSet<ExtracurricularEnrollment> ExtracurricularEnrollments { get; set; }
         public DbSet<ExtracurricularAttendance> ExtracurricularAttendance { get; set; }
         public DbSet<Lapso> Lapsos { get; set; }
+        public DbSet<Organization> Organizations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -151,6 +153,37 @@ namespace SchoolProyectBackend.Data
                     .HasForeignKey(g => g.SchoolID)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+            // 🔹 Tabla Organizations
+            modelBuilder.Entity<Organization>()
+                .ToTable("organizations")
+                .HasKey(o => o.OrganizationID);
+
+            modelBuilder.Entity<Organization>()
+                .Property(o => o.Name)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            modelBuilder.Entity<Organization>()
+                .Property(o => o.IsActive)
+                .HasDefaultValue(true);
+
+            modelBuilder.Entity<Organization>()
+                .Property(o => o.CreatedAt)
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            // 🔹 Schools -> Organizations (FK nullable al inicio; luego podrás volverla NOT NULL)
+            modelBuilder.Entity<School>()
+                .HasOne(s => s.Organization)
+                .WithMany(o => o.Schools)
+                .HasForeignKey(s => s.OrganizationID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // (Opcional) índice único por nombre de organización
+            modelBuilder.Entity<Organization>()
+                .HasIndex(o => o.Name)
+                .IsUnique();
+
 
 
             /*  // 🔹 Configurar Grade y su relación con Student y Course

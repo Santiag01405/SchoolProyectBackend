@@ -13,6 +13,8 @@ namespace SchoolProyectBackend.Models
         public required string Email { get; set; }
         public required string PasswordHash { get; set; }
 
+        public string Cedula { get; set; }
+
         public int SchoolID { get; set; }
 
         public School? School { get; set; }

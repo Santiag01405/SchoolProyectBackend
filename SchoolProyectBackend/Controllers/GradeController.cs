@@ -17,6 +17,14 @@ namespace SchoolProyectBackend.Controllers
             _context = context;
         }
 
+
+
+        private DateTime GetVenezuelanTime()
+        {
+            var venezuelaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Venezuela Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, venezuelaTimeZone);
+        }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Grade>>> GetGrades()
         {
@@ -55,7 +63,6 @@ namespace SchoolProyectBackend.Controllers
 
             return Ok(students);
         }
-
         [HttpPost("assign")]
         public async Task<IActionResult> AssignGrade([FromBody] Grade grade)
         {
@@ -64,37 +71,66 @@ namespace SchoolProyectBackend.Controllers
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == grade.UserID);
             var evaluation = await _context.Evaluations.FirstOrDefaultAsync(e => e.EvaluationID == grade.EvaluationID);
-
             if (user == null || evaluation == null)
                 return NotFound("Usuario o evaluación no encontrada.");
 
-            if (grade.CourseID == 0)
-            {
-                grade.CourseID = evaluation.CourseID;
-            }
+            if (grade.CourseID == 0) grade.CourseID = evaluation.CourseID;
 
-            var existingGrade = await _context.Grades
-                .FirstOrDefaultAsync(g => g.UserID == grade.UserID && g.EvaluationID == grade.EvaluationID);
+            var existing = await _context.Grades.FirstOrDefaultAsync(g => g.UserID == grade.UserID && g.EvaluationID == grade.EvaluationID);
 
-            if (existingGrade != null)
+            if (existing != null)
             {
-                existingGrade.GradeValue = grade.GradeValue;
-                existingGrade.Comments = grade.Comments;
+                if (grade.GradeValue.HasValue) existing.GradeValue = grade.GradeValue;
+                if (grade.GradeText != null) existing.GradeText = grade.GradeText;
+                if (grade.Comments != null) existing.Comments = grade.Comments;
+
+                await _context.SaveChangesAsync();
+                await NotifyParentsFlexible(existing, user.UserName, evaluation.Title);
+                return Ok(new { message = "Calificación actualizada correctamente." });
             }
             else
             {
+                if (!grade.GradeValue.HasValue && string.IsNullOrWhiteSpace(grade.GradeText) && string.IsNullOrWhiteSpace(grade.Comments))
+                    return BadRequest("Debes enviar al menos una nota (numérica o en texto) o un comentario.");
+
                 _context.Grades.Add(grade);
                 await _context.SaveChangesAsync();
-
-                // Lógica para notificar a los padres usando la misma estructura que asistencias
-                await NotifyParents(grade, user.UserName, evaluation.Title);
+                await NotifyParentsFlexible(grade, user.UserName, evaluation.Title);
+                return Ok(new { message = "Calificación registrada correctamente." });
             }
+        }
+        private async Task NotifyParentsFlexible(Grade grade, string studentName, string evaluationTitle)
+        {
+            var parents = await _context.UserRelationships
+                .Where(ur => ur.User1ID == grade.UserID && ur.RelationshipType == "Padre-Hijo")
+                .Select(ur => ur.User2ID)
+                .ToListAsync();
 
+            var course = await _context.Courses.FindAsync(grade.CourseID);
+            if (!parents.Any() || course == null) return;
+
+            var partes = new List<string>();
+            if (grade.GradeValue.HasValue) partes.Add($"Nota: {grade.GradeValue:0.##}");
+            if (!string.IsNullOrWhiteSpace(grade.GradeText)) partes.Add($"Calificación: {grade.GradeText}");
+            if (!string.IsNullOrWhiteSpace(grade.Comments)) partes.Add($"Observación: {grade.Comments}");
+            var detalle = partes.Count > 0 ? string.Join(" — ", partes) : "Actualización de evaluación.";
+
+            foreach (var p in parents)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserID = p,
+                    Title = "Nueva actualización de calificación",
+                    Content = $"Para {studentName} en '{evaluationTitle}' ({course.Name}). {detalle}",
+                    IsRead = false,
+                    Date = GetVenezuelanTime(),
+                    SchoolID = grade.SchoolID
+                });
+            }
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Calificación registrada correctamente." });
         }
 
-        private async Task NotifyParents(Grade grade, string studentName, string evaluationTitle)
+       /* private async Task NotifyParents(Grade grade, string studentName, string evaluationTitle)
         {
             var parents = await _context.UserRelationships
                 .Where(ur => ur.User1ID == grade.UserID && ur.RelationshipType == "Padre-Hijo")
@@ -102,6 +138,7 @@ namespace SchoolProyectBackend.Controllers
                 .ToListAsync();
 
             var course = await _context.Courses.FirstOrDefaultAsync(c => c.CourseID == grade.CourseID);
+            var venezuelaTime = GetVenezuelanTime();
 
             if (parents.Any() && course != null)
             {
@@ -113,14 +150,14 @@ namespace SchoolProyectBackend.Controllers
                         Title = "Nueva Calificación",
                         Content = $"Se ha subido una nueva calificación para {studentName} en la evaluación '{evaluationTitle}' del curso '{course.Name}'. Nota: {grade.GradeValue}",
                         IsRead = false,
-                        Date = DateTime.Now,
+                        Date = venezuelaTime,
                         SchoolID = grade.SchoolID
                     };
                     _context.Notifications.Add(notification);
                 }
                 await _context.SaveChangesAsync();
             }
-        }
+        }*/
 
         // El endpoint para obtener notificaciones genéricas
         [HttpGet("notifications/user/{userId}")]
@@ -197,7 +234,6 @@ namespace SchoolProyectBackend.Controllers
 
                return Ok(grades);
            }*/
-
         [HttpGet("student/{studentId}/lapso/{lapsoId}")]
         public async Task<IActionResult> GetGradesByLapso(int studentId, int lapsoId, [FromQuery] int schoolId)
         {
@@ -213,8 +249,9 @@ namespace SchoolProyectBackend.Controllers
             // 2. Obtener las notas del estudiante para el lapso especificado
             var grades = await _context.Grades
                 .Where(g => g.UserID == studentId && g.SchoolID == schoolId && g.Evaluation.LapsoID == lapsoId)
-                .Include(g => g.Evaluation) // Incluir los datos de la evaluación
-                    .ThenInclude(e => e.Course) // Y los datos del curso de esa evaluación
+                .Include(g => g.User)         // 👈 nombre del estudiante (si lo necesitas)
+                .Include(g => g.Evaluation)   // evaluación
+                    .ThenInclude(e => e.Course) // curso
                 .ToListAsync();
 
             if (!grades.Any())
@@ -222,9 +259,11 @@ namespace SchoolProyectBackend.Controllers
                 return NotFound("No se encontraron calificaciones para este estudiante en el lapso y colegio especificados.");
             }
 
+            // ⚠️ IMPORTANTE:
+            // Al devolver la entidad Grade, ahora también sale GradeText cuando exista.
+            // Tu MVC no se rompe (sigue viendo Evaluation, Course, etc).
             return Ok(grades);
         }
-
 
         [HttpGet("user/{userId}/grades")]
         public async Task<IActionResult> GetGradesForUser(int userId, [FromQuery] int schoolId)
@@ -257,12 +296,18 @@ namespace SchoolProyectBackend.Controllers
                 {
                     g.GradeID,
                     g.UserID,
-                    Estudiante = _context.Users.Where(u => u.UserID == g.UserID).Select(u => u.UserName).FirstOrDefault(),
+                    Estudiante = _context.Users
+                        .Where(u => u.UserID == g.UserID)
+                        .Select(u => u.UserName)
+                        .FirstOrDefault(),
                     Curso = g.Course.Name,
                     Evaluacion = g.Evaluation.Title,
-                    g.GradeValue,
-                    g.Comments
+                    g.GradeValue,        // numérica (puede ser null)
+                    g.GradeText,         // 👈 cualitativa (puede ser null)
+                    g.Comments,          // comentario (puede ser null)
+                    Date = g.Evaluation.Date // 👈 útil para orden en cliente
                 })
+                .OrderByDescending(x => x.Date)
                 .ToListAsync();
 
             if (!grades.Any())
@@ -270,6 +315,7 @@ namespace SchoolProyectBackend.Controllers
 
             return Ok(grades);
         }
+
         // 🟢 NUEVO ENDPOINT: Promedio de un Estudiante por Lapso
         // GET: api/grades/student/{userId}/average-by-lapso?schoolId=1&lapsoId=1
         [HttpGet("student/{userId}/average-by-lapso")]

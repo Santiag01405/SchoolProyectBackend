@@ -1,18 +1,25 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
 using System.Text;
+using System.Text.Json.Serialization; // 👈 NECESARIO para JsonIgnoreCondition/ReferenceHandler
 
 using SchoolProyectBackend.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔹 Configurar la conexión a SQL Server
+// 🔹 Connection string
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
 
-// 🔹 Configurar JWT Authentication
+// 🔹 DbContext (unificado + logging)
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString)
+           .EnableSensitiveDataLogging()                 // 👈 logs detallados (desactiva en prod)
+           .LogTo(Console.WriteLine, LogLevel.Information)
+);
+
+// 🔹 JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -24,58 +31,42 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Issuer"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "default_secret_key"))
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "default_secret_key")
+            )
         };
     });
 
-// 🔹 Agregar controladores
-builder.Services.AddControllers()
-    .AddJsonOptions(x =>
-        x.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
-    );
-
-//builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-
-builder.Services.AddCors(options =>
+// 🔹 Controllers + JSON: ignora nulos y evita ciclos
+builder.Services.AddControllers().AddJsonOptions(o =>
 {
-    options.AddPolicy("AllowAll",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
+    o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;                 // evita loops
+    o.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;     // 👈 NO escribir nulls
+    // o.JsonSerializerOptions.PropertyNamingPolicy = null; // <- descomenta si quieres PascalCase en vez de camelCase
 });
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-           .EnableSensitiveDataLogging() // 🔹 Registra consultas SQL completas
-           .LogTo(Console.WriteLine, LogLevel.Information) // 🔹 Muestra logs en consola
-);
-
+// 🔹 CORS (abrir todo)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 var app = builder.Build();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
+
 app.UseCors("AllowAll");
 
-/*app.UseEndpoints(endpoints =>
-{
-    endpoints.MapGet("/", async context =>
-    {
-        var routeData = endpoints.DataSources
-            .SelectMany(ds => ds.Endpoints)
-            .OfType<RouteEndpoint>()
-            .Select(e => e.RoutePattern.RawText)
-            .ToList();
+app.UseHttpsRedirection(); // 👈 opcional pero recomendado si tienes HTTPS
 
-        await context.Response.WriteAsJsonAsync(routeData);
-    });
-});*/
-
-// 🔹 Habilitar autenticación y autorización
 app.UseAuthentication();
 app.UseAuthorization();
 
