@@ -15,6 +15,8 @@ namespace SchoolProyectBackend.Models
 
         public string Cedula { get; set; }
 
+        public required string PhoneNumber { get; set; }
+
         public int SchoolID { get; set; }
 
         public School? School { get; set; }

@@ -1,29 +1,22 @@
-﻿    using Microsoft.AspNetCore.Mvc;
-    using Microsoft.EntityFrameworkCore;
-    using SchoolProyectBackend.Data;
-    using SchoolProyectBackend.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SchoolProyectBackend.Data;
+using SchoolProyectBackend.Models;
 
-    namespace SchoolProyectBackend.Controllers
+namespace SchoolProyectBackend.Controllers
+{
+    [Route("api/users")]
+    [ApiController]
+    public class UserController : ControllerBase
     {
-        [Route("api/users")]
-        [ApiController]
-        public class UserController : ControllerBase
+        private readonly ApplicationDbContext _context;
+
+        public UserController(ApplicationDbContext context)
         {
-            private readonly ApplicationDbContext _context;
+            _context = context;
+        }
 
-            public UserController(ApplicationDbContext context)
-            {
-                _context = context;
-            }
-
-        // GET: api/users 
-        /*[HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
-        {
-            return await _context.Users.ToListAsync();
-        }*/
-
-        //Nuevo GET con schoolID integrado
+        // Nuevo GET con schoolID integrado
         // GET: api/users?schoolId=5
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers([FromQuery] int schoolId)
@@ -182,6 +175,14 @@
         {
             if (user == null)
                 return BadRequest(new { message = "El usuario no puede ser nulo" });
+
+            // ✨✨✨ NUEVA VALIDACIÓN ✨✨✨
+            // El número de teléfono debe ser requerido en la creación
+            if (string.IsNullOrWhiteSpace(user.PhoneNumber))
+            {
+                return BadRequest(new { message = "El número de teléfono es requerido." });
+            }
+
 
             // ✅ Validación: Verificar si ya existe un usuario con la misma cédula
             // y en el mismo colegio.
@@ -368,7 +369,10 @@
                 RoleID = userUpdate.RoleID,
                 SchoolID = userUpdate.SchoolID,
                 // Conserva el ClassroomID existente si no se proporciona uno nuevo
-                ClassroomID = userUpdate.ClassroomID ?? existingUser.ClassroomID
+                ClassroomID = userUpdate.ClassroomID ?? existingUser.ClassroomID,
+
+                // ✨✨✨ NUEVA PROPIEDAD ✨✨✨
+                PhoneNumber = userUpdate.PhoneNumber ?? existingUser.PhoneNumber
             };
 
             // 3. Marca la nueva entidad como modificada para que Entity Framework la actualice.
@@ -551,6 +555,6 @@
         {
             return _context.Users.Count(u => u.RoleID == 3 && u.SchoolID == schoolId);
         }
-      
+
     }
 }
