@@ -23,6 +23,9 @@ namespace SchoolProyectBackend.Models
         [Column("isRead")]
         public bool IsRead { get; set; } = false;
 
+        [Column("readDate")]
+        public DateTime? ReadDate { get; set; }
+
         [ForeignKey("User")]
         public int UserID { get; set; }
         public User? User { get; set; }

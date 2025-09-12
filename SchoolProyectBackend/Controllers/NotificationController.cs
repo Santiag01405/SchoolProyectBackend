@@ -99,6 +99,7 @@ namespace SchoolProyectBackend.Controllers
                 return NotFound();
 
             notification.IsRead = true;
+            notification.ReadDate = GetVenezuelanTime();
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -308,7 +309,11 @@ namespace SchoolProyectBackend.Controllers
             if (!toUpdate.Any())
                 return Ok(new { message = "No hay notificaciones sin leer para este filtro." });
 
-            foreach (var n in toUpdate) n.IsRead = true;
+            foreach (var n in toUpdate)
+            {
+                n.IsRead = true;
+                n.ReadDate = GetVenezuelanTime();
+            }
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"Se marcaron {toUpdate.Count} como leídas." });

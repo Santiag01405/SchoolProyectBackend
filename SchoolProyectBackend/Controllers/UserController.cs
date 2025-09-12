@@ -370,8 +370,7 @@ namespace SchoolProyectBackend.Controllers
                 SchoolID = userUpdate.SchoolID,
                 // Conserva el ClassroomID existente si no se proporciona uno nuevo
                 ClassroomID = userUpdate.ClassroomID ?? existingUser.ClassroomID,
-
-                // ✨✨✨ NUEVA PROPIEDAD ✨✨✨
+                Cedula = userUpdate.Cedula ?? existingUser.Cedula,
                 PhoneNumber = userUpdate.PhoneNumber ?? existingUser.PhoneNumber
             };
 
